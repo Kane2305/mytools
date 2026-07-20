@@ -1,0 +1,1183 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>投資策略追蹤系統</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0F1B2B; --card:#16263B; --card-border:rgba(232,227,212,0.09);
+    --ink:#E8E3D4; --muted:#8A97AC; --gold:#C9A227; --red:#C0524A; --green:#5FA37D;
+    --input-bg:#0D1826;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:radial-gradient(ellipse at top,#14233A 0%,var(--bg) 60%);
+    color:var(--ink); font-family:'Noto Sans TC',system-ui,sans-serif;
+    min-height:100vh; padding:20px 14px 50px; display:flex; justify-content:center;
+  }
+  .wrap{width:100%; max-width:760px;}
+  h1{font-family:'Noto Serif TC',serif; font-size:22px; margin:2px 0 4px;}
+  .sub{color:var(--muted); font-size:12.5px; margin:0 0 18px; line-height:1.6;}
+  .tabs{display:flex; gap:6px; overflow-x:auto; margin-bottom:16px; padding-bottom:2px;}
+  .tab{
+    font-family:'Noto Sans TC'; font-size:12.5px; padding:8px 13px; border-radius:999px;
+    background:var(--card); border:1px solid var(--card-border); color:var(--muted);
+    cursor:pointer; white-space:nowrap; flex-shrink:0;
+  }
+  .tab.active{background:var(--gold); color:#1A1408; border-color:var(--gold); font-weight:700;}
+  .panel{display:none;}
+  .panel.active{display:block;}
+  .card{background:var(--card); border:1px solid var(--card-border); border-radius:14px; padding:16px; margin-bottom:14px;}
+  .card h2{font-family:'Noto Serif TC'; font-size:15px; margin:0 0 3px;}
+  .card h3{font-family:'Noto Serif TC'; font-size:13px; margin:14px 0 3px; color:var(--gold);}
+  .card .desc{color:var(--muted); font-size:11.5px; margin:0 0 12px; line-height:1.6;}
+  table{width:100%; border-collapse:collapse; font-size:12.5px;}
+  th{text-align:left; color:var(--muted); font-weight:500; font-size:11px; padding:6px 4px; border-bottom:1px solid var(--card-border);}
+  td{padding:7px 4px; border-bottom:1px solid var(--card-border); vertical-align:middle;}
+  td.num, th.num{text-align:right; font-family:'JetBrains Mono';}
+  input[type=number], input[type=text], textarea, select{
+    background:var(--input-bg); border:1px solid var(--card-border); color:var(--ink);
+    border-radius:7px; padding:6px 8px; font-family:'JetBrains Mono'; font-size:12.5px; width:100%;
+  }
+  input[type=text], textarea, select{font-family:'Noto Sans TC';}
+  textarea{resize:vertical; min-height:50px;}
+  .price-input{width:75px;}
+  .pos{color:var(--green);} .neg{color:var(--red);}
+  button{
+    font-family:'Noto Sans TC'; font-weight:500; font-size:12.5px; background:var(--gold);
+    color:#1A1408; border:none; border-radius:999px; padding:8px 16px; cursor:pointer;
+  }
+  button.ghost{background:transparent; color:var(--muted); border:1px solid var(--card-border);}
+  button.danger{background:transparent; color:var(--red); border:1px solid rgba(192,82,74,0.4);}
+  button:disabled{opacity:0.4; cursor:default;}
+  .row{display:flex; gap:8px; align-items:center; margin-bottom:8px; flex-wrap:wrap;}
+  .row label{font-size:12px; color:var(--muted); min-width:90px;}
+  .bar-bg{background:var(--input-bg); border-radius:999px; height:14px; overflow:hidden; margin:8px 0;}
+  .bar-fill{height:100%; border-radius:999px; transition:width 0.3s ease;}
+  .badge{font-size:10.5px; padding:2px 8px; border-radius:999px; font-weight:700;}
+  .badge.hit{background:rgba(201,162,39,0.18); color:var(--gold);}
+  .badge.wait{background:rgba(138,151,172,0.15); color:var(--muted);}
+  .badge.warn{background:rgba(192,82,74,0.18); color:var(--red);}
+  .tier-row{display:flex; gap:6px; align-items:center; margin-bottom:6px; flex-wrap:wrap;}
+  .tier-row input{width:60px;}
+  .tier-row select{width:auto;}
+  .journal-item{border-top:1px solid var(--card-border); padding:10px 0;}
+  .journal-item:first-child{border-top:none;}
+  .meta{font-size:11px; color:var(--muted);}
+  .totalrow td{font-weight:700; border-top:2px solid var(--card-border); border-bottom:none;}
+  .empty{color:var(--muted); font-size:12px; text-align:center; padding:16px 0;}
+  ::placeholder{color:var(--muted); opacity:0.6;}
+  .dca-row{display:flex; gap:8px; align-items:center; margin-bottom:8px;}
+  .dca-row input{width:auto; flex:1;}
+  .dca-log-row{display:flex; justify-content:space-between; align-items:center; padding:5px 0; border-bottom:1px solid var(--card-border);}
+  .status-msg{font-size:12px; color:var(--gold); margin-top:8px;}
+  .status-msg.error{color:var(--red);}
+  .modal-overlay{
+    display:none; position:fixed; inset:0; background:rgba(6,12,20,0.75);
+    z-index:100; justify-content:center; align-items:center; padding:20px;
+  }
+  .modal-overlay.show{display:flex;}
+  .modal-box{
+    background:var(--card); border:1px solid rgba(192,82,74,0.55); border-radius:14px;
+    padding:20px; max-width:360px; width:100%;
+    box-shadow:0 8px 40px rgba(0,0,0,0.5);
+  }
+  .modal-box h3{
+    font-family:'Noto Serif TC'; font-size:15px; margin:0 0 8px; color:var(--red);
+  }
+  .modal-box p{font-size:13px; line-height:1.6; margin:0 0 16px; color:var(--ink);}
+  .modal-actions{display:flex; gap:10px; justify-content:flex-end;}
+  .modal-actions .confirm-del{background:var(--red); color:#fff;}
+  .modal-box.form-modal{border-color:rgba(201,162,39,0.45); max-width:400px;}
+  .form-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  .form-grid label{font-size:11.5px; color:var(--muted); display:flex; flex-direction:column; gap:4px;}
+  .table-scroll{overflow-x:auto; -webkit-overflow-scrolling:touch;}
+  .table-scroll table{min-width:620px;}
+  @media (max-width:520px){
+    body{padding:14px 8px 40px;}
+    .card{padding:13px 11px;}
+    h1{font-size:19px;}
+    .row label{min-width:76px;}
+    .form-grid{grid-template-columns:1fr;}
+    .rp-kpis{flex-direction:column;}
+    button{padding:9px 15px;}
+    .tier-row input{width:52px;}
+    input[type=number], input[type=text], input[type=date], textarea, select{font-size:16px;}
+    .dca-log-row{flex-wrap:wrap; gap:6px;}
+  }
+  .report-page{
+    width:700px; background:linear-gradient(180deg, #14233A 0%, #0F1B2B 100%);
+    border:1px solid var(--card-border); border-radius:4px; padding:36px 40px;
+    margin:0 auto; color:var(--ink);
+  }
+  .report-page .rp-eyebrow{
+    font-family:'JetBrains Mono'; font-size:10px; letter-spacing:0.18em;
+    color:var(--gold); text-transform:uppercase; margin-bottom:6px;
+  }
+  .report-page h1{font-family:'Noto Serif TC'; font-size:24px; margin:0 0 2px;}
+  .report-page .rp-period{color:var(--muted); font-size:12px; margin-bottom:22px;}
+  .report-page .rp-divider{border:none; border-top:1px solid var(--gold); opacity:0.5; margin:20px 0;}
+  .report-page h2{
+    font-family:'Noto Serif TC'; font-size:14px; color:var(--gold);
+    margin:22px 0 10px; letter-spacing:0.05em;
+  }
+  .rp-kpis{display:flex; gap:14px; margin:16px 0;}
+  .rp-kpi{flex:1; border:1px solid var(--card-border); border-radius:10px; padding:12px 14px;}
+  .rp-kpi .k-label{font-size:10.5px; color:var(--muted); margin-bottom:3px;}
+  .rp-kpi .k-value{font-family:'JetBrains Mono'; font-size:18px; font-weight:700;}
+  .report-page table{width:100%; border-collapse:collapse; font-size:11.5px;}
+  .report-page th{color:var(--muted); font-weight:500; font-size:10px; text-align:left; padding:5px 4px; border-bottom:1px solid var(--gold);}
+  .report-page td{padding:6px 4px; border-bottom:1px solid var(--card-border);}
+  .report-page td.num, .report-page th.num{text-align:right; font-family:'JetBrains Mono';}
+  .rp-footer{margin-top:26px; font-size:9.5px; color:var(--muted); line-height:1.6; border-top:1px solid var(--card-border); padding-top:10px;}
+  .rp-journal-item{padding:7px 0; border-bottom:1px solid var(--card-border); font-size:11.5px;}
+  .rp-journal-item .meta{display:block; margin-top:2px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>投資策略追蹤系統</h1>
+  <p class="sub">這裡不會自動連網抓即時股價,但可以上傳報價截圖讓 AI 幫你辨識,也可以手動輸入。把之前聊過的規則都變成看得到的數字——集中度、分批止盈、停損檢查點、衝動冷卻。</p>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="dashboard">總覽</div>
+    <div class="tab" data-tab="concentration">集中度監控</div>
+    <div class="tab" data-tab="takeprofit">止盈 / 停損</div>
+    <div class="tab" data-tab="impulse">衝動控制</div>
+    <div class="tab" data-tab="dca">定期定額</div>
+    <div class="tab" data-tab="report">報表</div>
+    <div class="tab" data-tab="settings">設定</div>
+  </div>
+
+  <div id="dashboard" class="panel active">
+    <div class="card">
+      <h2>持股總覽</h2>
+      <p class="desc">現價可以直接手動更新,或用截圖辨識自動帶入,填完按「儲存」就會留住這次的紀錄。</p>
+      <div class="table-scroll">
+      <table>
+        <thead><tr><th>代碼</th><th>名稱</th><th>分類</th><th class="num">股數</th><th class="num">平均成本</th><th class="num">現價</th><th class="num">市值</th><th class="num">報酬率</th><th></th></tr></thead>
+        <tbody id="holdingsBody"></tbody>
+        <tbody>
+          <tr class="totalrow">
+            <td colspan="6">總計</td>
+            <td class="num" id="totalValue">-</td>
+            <td class="num" id="totalReturn">-</td>
+            <td></td>
+          </tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="row" style="margin-top:12px;">
+        <button id="saveDashboard">儲存現價</button>
+        <button id="toggleAddHolding" class="ghost">+ 新增標的</button>
+        <span class="meta" id="lastUpdated"></span>
+      </div>
+    </div>
+    <div class="card">
+      <h2>投資金額曲線</h2>
+      <p class="desc">金色是投入成本,綠色是市值。資料來自每次「儲存現價」自動留下的快照——買進新部位並更新持股後記得儲存,成本線才會跳上去。</p>
+      <div id="investCurve"></div>
+    </div>
+    <div class="card">
+      <h2>雲端同步與備份</h2>
+      <p class="desc" id="syncStatus">檢查同步狀態中...</p>
+      <div class="row">
+        <label>同步碼</label>
+        <input type="text" id="syncCodeInput" placeholder="貼上同步碼,或按「產生」建立新的" style="flex:1; min-width:180px;">
+        <button id="genSyncCode" class="ghost">產生</button>
+      </div>
+      <div class="row">
+        <button id="applySyncCode">套用同步碼</button>
+        <button id="exportData" class="ghost">匯出備份</button>
+        <button id="importDataBtn" class="ghost">匯入備份</button>
+        <input type="file" id="importFile" accept=".json,application/json" style="display:none;">
+      </div>
+      <div id="syncMsg" class="status-msg"></div>
+      <p class="meta" style="margin-top:8px; line-height:1.6;">同步碼就像這份資料的鑰匙:在另一台裝置(手機、平板)打開這個網頁,輸入同一組同步碼,就能看到同一份資料。同步碼請保管好,不要用猜得到的字串。</p>
+    </div>
+  </div>
+
+  <div id="concentration" class="panel">
+    <div class="card">
+      <h2>AI 供應鏈集中度</h2>
+      <p class="desc">算你的資產有多少比例最終曝險在台積電(直接持有 + 透過台灣50間接持有)。這個數字決定你的資產命運有多依賴同一家公司。</p>
+      <div class="row"><label>0050 中台積電權重</label><input type="number" id="tsmcWeight" step="0.01"> %</div>
+      <div class="row">
+        <a href="https://www.yuantaetfs.com/product/detail/0050/ratio" target="_blank" rel="noopener" style="text-decoration:none;"><button class="ghost">前往元大官網查最新權重</button></a>
+        <span class="meta" id="tsmcWeightAsOf"></span>
+      </div>
+      <p class="meta" style="margin:2px 0 10px; line-height:1.6;">0050 每季調整一次成分股(3、6、9、12 月審核,生效日通常在該月第三個星期五後),建議每季生效後回來更新一次權重即可。權重在季中也會隨股價漲跌自然浮動,不用天天盯。</p>
+      <div class="row"><label>集中度警戒線</label><input type="number" id="concLimit" step="1"> %</div>
+      <div id="concResult"></div>
+      <button id="saveConc">儲存設定</button>
+    </div>
+  </div>
+
+  <div id="takeprofit" class="panel">
+    <div class="card">
+      <h2>分批止盈 / 停損規劃</h2>
+      <p class="desc">針對衛星部位(非核心的台灣50、台積電),分別設定上漲跟下跌的關卡。停損關卡可以選「硬停損出場」或「重新檢視點」——後者不會自動賣,只是提醒你回去檢查基本面邏輯還在不在。</p>
+      <div id="tpList"></div>
+    </div>
+  </div>
+
+  <div id="impulse" class="panel">
+    <div class="card">
+      <h2>衝動控制日誌</h2>
+      <p class="desc">想買想賣的當下,先寫在這裡,不要直接下單。冷卻時間到了之後,回來看看自己還想不想做。</p>
+      <div class="row"><label>標的</label><select id="impTicker"></select></div>
+      <div class="row"><label>想做什麼</label>
+        <select id="impAction"><option value="賣出">賣出</option><option value="買進">買進</option></select>
+      </div>
+      <div class="row"><label style="align-self:flex-start;margin-top:6px;">為什麼</label>
+        <textarea id="impReason" placeholder="現在的想法是什麼?是因為帳面數字不舒服,還是真的有新的判斷?"></textarea>
+      </div>
+      <div class="row"><label>冷卻時數</label><input type="number" id="impCooldown" step="1" style="width:70px;"> 小時</div>
+      <button id="addImpulse">記錄,開始冷卻</button>
+    </div>
+    <div class="card">
+      <h2>紀錄</h2>
+      <div id="journalList"></div>
+    </div>
+  </div>
+
+  <div id="dca" class="panel">
+    <div class="card">
+      <h2>定期定額設定</h2>
+      <p class="desc">可以新增、修改或刪除標的,金額調整之後記得按儲存。</p>
+      <div id="dcaConfig"></div>
+      <div class="dca-row">
+        <input type="text" id="newDcaTicker" placeholder="新標的代碼,例如 2317">
+        <input type="number" id="newDcaAmount" placeholder="每月金額" style="max-width:110px;">
+        <button id="addDcaTarget" class="ghost">新增</button>
+      </div>
+      <button id="saveDcaConfig">儲存設定</button>
+    </div>
+    <div class="card">
+      <h2>本月扣款</h2>
+      <button id="logDca">記錄本月已扣款</button>
+      <div id="dcaHistory" style="margin-top:12px;"></div>
+    </div>
+  </div>
+
+  <div id="settings" class="panel">
+    <div class="card">
+      <h2>資料備份與復原</h2>
+      <p class="desc">將所有投資紀錄匯出為 JSON 檔案備份,或從備份檔案復原資料。備份檔可以存在手機或雲端,萬一資料丟失可以完全恢復。</p>
+      <div class="row">
+        <button id="exportData" class="ghost">匯出備份 (JSON)</button>
+        <button id="importDataBtn" class="ghost">匯入備份</button>
+        <input type="file" id="importFile" accept=".json" style="display:none;">
+      </div>
+      <div id="backupStatus" class="status-msg" style="margin-top:8px;"></div>
+    </div>
+    <div class="card">
+      <h2>系統資訊</h2>
+      <div class="meta">
+        <p>此工具運行在瀏覽器的本地儲存空間內,所有資料保留在你的裝置上,不會上傳到任何伺服器。</p>
+        <p style="margin-top:6px;">資料包含:持股記錄、快照歷史、定期定額、衝動日誌、止盈/停損關卡、集中度設定等。</p>
+        <p style="margin-top:6px;">建議定期備份,避免意外遺失。清除瀏覽器快取/資料時會同時清除此工具的所有紀錄。</p>
+      </div>
+    </div>
+  </div>
+
+  <div id="report" class="panel">
+    <div class="card">
+      <h2>產生報表</h2>
+      <p class="desc">選擇時間區間,報表會包含目前的持股快照、集中度、期間內的資產變化(需要有儲存過現價的紀錄)、扣款紀錄與衝動日誌回顧。產生後可以下載成 PNG 圖片或 PDF。</p>
+      <div class="row">
+        <label>起始日期</label><input type="date" id="reportStart" style="max-width:150px;">
+        <label style="min-width:auto;">結束日期</label><input type="date" id="reportEnd" style="max-width:150px;">
+      </div>
+      <div class="row">
+        <button id="genReport">產生報表</button>
+        <button id="dlPng" class="ghost" disabled>下載 PNG</button>
+        <button id="dlPdf" class="ghost" disabled>下載 PDF</button>
+      </div>
+      <div id="reportStatus" class="status-msg"></div>
+    </div>
+    <div id="reportWrap" style="overflow-x:auto;"></div>
+  </div>
+
+</div>
+
+<div class="modal-overlay" id="confirmModal">
+  <div class="modal-box">
+    <h3>確定要刪除嗎?</h3>
+    <p id="confirmModalMsg"></p>
+    <div class="modal-actions">
+      <button class="ghost" id="confirmModalCancel">取消</button>
+      <button class="confirm-del" id="confirmModalOk">確定刪除</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="holdingModal">
+  <div class="modal-box form-modal">
+    <h3 id="holdingFormTitle" style="color:var(--gold);">新增標的</h3>
+    <div class="form-grid">
+      <label>代碼<input type="text" id="newHTicker" placeholder="如 2317"></label>
+      <label>名稱<input type="text" id="newHName" placeholder="如 鴻海" style="font-family:'Noto Sans TC';"></label>
+      <label>分類<select id="newHCategory"><option value="satellite">衛星部位</option><option value="core">核心部位</option></select></label>
+      <label>股數<input type="number" id="newHShares" placeholder="股數"></label>
+      <label>平均成本<input type="number" id="newHCost" placeholder="平均成本"></label>
+      <label>現價<input type="number" id="newHPrice" placeholder="現價"></label>
+    </div>
+    <div class="modal-actions" style="margin-top:16px;">
+      <button class="ghost" id="holdingModalCancel">取消</button>
+      <button id="addHolding">確認新增</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+const DEFAULT_HOLDINGS = [];
+const DEFAULT_SETTINGS = {tsmcWeight:59.06, tsmcWeightAsOf:'2026-07-14', concLimit:50, cooldownHours:24, lastUpdated:null};
+const DEFAULT_TIERS = {}, DEFAULT_STOP_TIERS = {};
+DEFAULT_HOLDINGS.filter(h=>h.category==='satellite').forEach(h=>{
+  DEFAULT_TIERS[h.ticker] = [{pct:20,fraction:25},{pct:40,fraction:25},{pct:60,fraction:25}];
+  DEFAULT_STOP_TIERS[h.ticker] = [{pct:20,type:'review',note:'重新檢查基本面邏輯還在不在'}];
+});
+const DEFAULT_DCA_CONFIG = {};
+
+let state = {
+  holdings: JSON.parse(JSON.stringify(DEFAULT_HOLDINGS)),
+  settings: JSON.parse(JSON.stringify(DEFAULT_SETTINGS)),
+  tiers: JSON.parse(JSON.stringify(DEFAULT_TIERS)),
+  stopTiers: JSON.parse(JSON.stringify(DEFAULT_STOP_TIERS)),
+  journal: [],
+  dcaConfig: JSON.parse(JSON.stringify(DEFAULT_DCA_CONFIG)),
+  dcaLog: [],
+  snapshots: []
+};
+
+// ===== 雲端同步層 =====
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyAbn_c0p5wQ_Saqgj4rxp5mPl1j_BRqDsU",
+  authDomain: "my-investment-tracker-36ede.firebaseapp.com",
+  projectId: "my-investment-tracker-36ede",
+  storageBucket: "my-investment-tracker-36ede.firebasestorage.app",
+  messagingSenderId: "304993568121",
+  appId: "1:304993568121:web:1496808f166421e3175ba8"
+};
+const STORAGE_KEYS = ['portfolio-data','tp-tiers','sl-tiers','impulse-journal','dca-data','value-snapshots'];
+let fsDb = null;
+let syncCode = null;
+
+function initFirebase(){
+  try{
+    if(typeof firebase === 'undefined') return false;
+    firebase.initializeApp(FIREBASE_CONFIG);
+    fsDb = firebase.firestore();
+    return true;
+  }catch(e){ console.error('firebase init failed', e); return false; }
+}
+function localGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+function localSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
+
+function cloudDoc(){ return fsDb.collection('trackers').doc(syncCode); }
+
+async function save(key, value){
+  const json = JSON.stringify(value);
+  // 雲端優先
+  if(fsDb && syncCode){
+    try{ await cloudDoc().set({[key]: json, updatedAt: Date.now()}, {merge:true}); }
+    catch(e){ console.error('cloud save error', e); setSyncMsg('雲端儲存失敗: '+e.message, true); }
+  }
+  // 本地備援(claude.ai 環境的 window.storage,或瀏覽器 localStorage)
+  try{ if(window.storage) await window.storage.set(key, json, false); }catch(e){}
+  localSet('pt-'+key, json);
+}
+
+async function loadOneKey(key){
+  // 依序嘗試:雲端 → window.storage → localStorage
+  if(fsDb && syncCode){
+    try{
+      const snap = await cloudDoc().get();
+      if(snap.exists && snap.data()[key]) return snap.data()[key];
+    }catch(e){ console.error('cloud load error', e); }
+  }
+  try{ if(window.storage){ const r = await window.storage.get(key); if(r && r.value) return r.value; } }catch(e){}
+  return localGet('pt-'+key);
+}
+
+async function loadState(){
+  // 雲端模式下一次抓整份文件,避免重複請求
+  let cloudData = null;
+  if(fsDb && syncCode){
+    try{ const snap = await cloudDoc().get(); if(snap.exists) cloudData = snap.data(); }
+    catch(e){ console.error('cloud load error', e); setSyncMsg('雲端讀取失敗: '+e.message+',先以本地資料顯示。', true); }
+  }
+  async function getKey(key){
+    if(cloudData && cloudData[key]) return cloudData[key];
+    try{ if(window.storage){ const r = await window.storage.get(key); if(r && r.value) return r.value; } }catch(e){}
+    return localGet('pt-'+key);
+  }
+  try{ const v = await getKey('portfolio-data');
+    if(v){ const d = JSON.parse(v); state.holdings = d.holdings || state.holdings; state.settings = Object.assign({}, DEFAULT_SETTINGS, d.settings || {}); }
+  }catch(e){}
+  try{ const v = await getKey('tp-tiers'); if(v) state.tiers = JSON.parse(v); }catch(e){}
+  try{ const v = await getKey('sl-tiers'); if(v) state.stopTiers = JSON.parse(v); }catch(e){}
+  try{ const v = await getKey('impulse-journal'); if(v) state.journal = JSON.parse(v); }catch(e){}
+  try{ const v = await getKey('dca-data');
+    if(v){ const d = JSON.parse(v); state.dcaConfig = d.config || state.dcaConfig; state.dcaLog = d.log || []; }
+  }catch(e){}
+  try{ const v = await getKey('value-snapshots'); if(v) state.snapshots = JSON.parse(v); }catch(e){}
+  // 舊版本的扣款紀錄沒有id,補上編號讓刪除功能可以正常運作
+  let patched = false;
+  state.dcaLog.forEach((l,i)=>{
+    if(!l.id){ l.id = 'd-legacy-' + i + '-' + (l.date||''); patched = true; }
+  });
+  if(patched){ await save('dca-data', {config: state.dcaConfig, log: state.dcaLog}); }
+  // 如果雲端文件是空的但本地有資料,把本地資料上傳(首次遷移)
+  if(fsDb && syncCode && !cloudData){
+    await saveAllKeys();
+    setSyncMsg('已將本地資料上傳到雲端,之後其他裝置輸入同一組同步碼即可看到。');
+  }
+}
+
+async function saveAllKeys(){
+  await save('portfolio-data', {holdings: state.holdings, settings: state.settings});
+  await save('tp-tiers', state.tiers);
+  await save('sl-tiers', state.stopTiers);
+  await save('impulse-journal', state.journal);
+  await save('dca-data', {config: state.dcaConfig, log: state.dcaLog});
+  await save('value-snapshots', state.snapshots);
+}
+
+function setSyncMsg(msg, isError){
+  const el = document.getElementById('syncMsg');
+  if(el){ el.textContent = msg; el.className = 'status-msg' + (isError ? ' error' : ''); }
+}
+function updateSyncStatus(){
+  const el = document.getElementById('syncStatus');
+  if(!el) return;
+  if(!fsDb){ el.textContent = '雲端服務未載入(可能是離線或此環境不支援),資料只會存在這台裝置的瀏覽器裡。'; return; }
+  if(!syncCode){ el.textContent = '尚未設定同步碼——目前資料只存在這台裝置。設定同步碼後,資料會存到雲端,任何裝置輸入同一組碼都能同步。'; return; }
+  el.textContent = '已連線雲端,同步碼: ' + syncCode.slice(0,4) + '****' + syncCode.slice(-4) + '。資料會自動同步到雲端。';
+}
+
+function pct(x){ return (x>=0?'+':'') + (x*100).toFixed(1) + '%'; }
+function money(x){ return Math.round(x).toLocaleString('zh-Hant'); }
+
+function confirmDelete(message){
+  return new Promise(resolve=>{
+    const modal = document.getElementById('confirmModal');
+    document.getElementById('confirmModalMsg').textContent = message;
+    modal.classList.add('show');
+    const okBtn = document.getElementById('confirmModalOk');
+    const cancelBtn = document.getElementById('confirmModalCancel');
+    function cleanup(result){
+      modal.classList.remove('show');
+      okBtn.removeEventListener('click', onOk);
+      cancelBtn.removeEventListener('click', onCancel);
+      modal.removeEventListener('click', onOverlay);
+      resolve(result);
+    }
+    function onOk(){ cleanup(true); }
+    function onCancel(){ cleanup(false); }
+    function onOverlay(e){ if(e.target===modal) cleanup(false); }
+    okBtn.addEventListener('click', onOk);
+    cancelBtn.addEventListener('click', onCancel);
+    modal.addEventListener('click', onOverlay);
+  });
+}
+
+function renderDashboard(){
+  const tbody = document.getElementById('holdingsBody');
+  tbody.innerHTML = '';
+  let totalCost=0, totalValue=0;
+  state.holdings.forEach((h,i)=>{
+    const cost = h.shares*h.avgCost, value = h.shares*h.price, ret = cost ? value/cost - 1 : 0;
+    totalCost += cost; totalValue += value;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${h.ticker}</td>
+      <td>${h.name}</td>
+      <td class="meta">${h.category==='core'?'核心':'衛星'}</td>
+      <td class="num">${h.shares}</td>
+      <td class="num">${h.avgCost}</td>
+      <td class="num"><input class="price-input" type="number" step="0.01" value="${h.price}" data-field="price" data-idx="${i}"></td>
+      <td class="num">${money(value)}</td>
+      <td class="num ${ret>=0?'pos':'neg'}">${pct(ret)}</td>
+      <td style="white-space:nowrap;">
+        <button class="ghost" data-edit-holding="${i}" style="padding:4px 9px;">編輯</button>
+        <button class="danger" data-remove-holding="${i}" style="padding:4px 9px;">刪除</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+  document.getElementById('totalValue').textContent = money(totalValue);
+  const totalRet = totalCost ? totalValue/totalCost - 1 : 0;
+  const totalRetEl = document.getElementById('totalReturn');
+  totalRetEl.textContent = pct(totalRet);
+  totalRetEl.className = 'num ' + (totalRet>=0?'pos':'neg');
+  tbody.parentElement.querySelectorAll('[data-field]').forEach(inp=>{
+    inp.addEventListener('change', e=>{
+      const idx = +e.target.dataset.idx;
+      state.holdings[idx].price = parseFloat(e.target.value) || state.holdings[idx].price;
+      renderDashboard();
+    });
+  });
+  tbody.parentElement.querySelectorAll('[data-edit-holding]').forEach(btn=>{
+    btn.addEventListener('click', e=>{
+      const idx = +e.target.dataset.editHolding;
+      const h = state.holdings[idx];
+      editingIndex = idx;
+      document.getElementById('holdingFormTitle').textContent = `編輯 ${h.name}(${h.ticker})`;
+      document.getElementById('newHTicker').value = h.ticker;
+      document.getElementById('newHName').value = h.name;
+      document.getElementById('newHCategory').value = h.category;
+      document.getElementById('newHShares').value = h.shares;
+      document.getElementById('newHCost').value = h.avgCost;
+      document.getElementById('newHPrice').value = h.price;
+      document.getElementById('addHolding').textContent = '儲存修改';
+      document.getElementById('holdingModal').classList.add('show');
+    });
+  });
+  tbody.parentElement.querySelectorAll('[data-remove-holding]').forEach(btn=>{
+    btn.addEventListener('click', async e=>{
+      const idx = +e.target.dataset.removeHolding;
+      const h = state.holdings[idx];
+      const ok = await confirmDelete(`即將刪除持股「${h.name}(${h.ticker})」,連同它的止盈/停損關卡設定也會一起清除,刪除後無法復原。`);
+      if(!ok) return;
+      const ticker = h.ticker;
+      state.holdings.splice(idx,1);
+      delete state.tiers[ticker]; delete state.stopTiers[ticker];
+      await save('tp-tiers', state.tiers); await save('sl-tiers', state.stopTiers);
+      state.settings.lastUpdated = Date.now();
+      await save('portfolio-data', {holdings: state.holdings, settings: state.settings});
+      renderAll();
+    });
+  });
+  const lu = state.settings.lastUpdated;
+  document.getElementById('lastUpdated').textContent = lu ? ('上次儲存: ' + new Date(lu).toLocaleString('zh-TW')) : '尚未儲存過';
+}
+
+function tsmcExposure(){
+  const t0050 = state.holdings.find(h=>h.ticker==='0050');
+  const t2330 = state.holdings.find(h=>h.ticker==='2330');
+  const totalValue = state.holdings.reduce((s,h)=>s+h.shares*h.price,0);
+  const val0050 = t0050 ? t0050.shares*t0050.price : 0;
+  const val2330 = t2330 ? t2330.shares*t2330.price : 0;
+  const indirect = val0050 * (state.settings.tsmcWeight/100);
+  const totalTsmc = indirect + val2330;
+  return { totalValue, indirect, direct: val2330, totalTsmc, pctOfPortfolio: totalValue ? totalTsmc/totalValue*100 : 0 };
+}
+
+function renderConcentration(){
+  document.getElementById('tsmcWeight').value = state.settings.tsmcWeight;
+  document.getElementById('concLimit').value = state.settings.concLimit;
+  document.getElementById('tsmcWeightAsOf').textContent = state.settings.tsmcWeightAsOf ? ('資料時間: ' + state.settings.tsmcWeightAsOf) : '';
+  const ex = tsmcExposure();
+  const over = ex.pctOfPortfolio > state.settings.concLimit;
+  const barColor = over ? 'var(--red)' : 'var(--gold)';
+  document.getElementById('concResult').innerHTML = `
+    <div style="margin-top:14px;">
+      <div class="row" style="justify-content:space-between;">
+        <span class="meta">台積電總曝險(直接 + 0050間接)</span>
+        <span style="font-family:'JetBrains Mono'; font-weight:700; color:${barColor}">${ex.pctOfPortfolio.toFixed(1)}%</span>
+      </div>
+      <div class="bar-bg"><div class="bar-fill" style="width:${Math.min(ex.pctOfPortfolio,100)}%; background:${barColor};"></div></div>
+      <p class="meta">直接持有台積電市值約 ${money(ex.direct)} 元,透過 0050 間接曝險約 ${money(ex.indirect)} 元,合計約 ${money(ex.totalTsmc)} 元,占總資產 ${money(ex.totalValue)} 元 的 ${ex.pctOfPortfolio.toFixed(1)}%。</p>
+      ${over ? `<p style="color:var(--red); font-size:12.5px; margin-top:8px;">已超過你設定的 ${state.settings.concLimit}% 警戒線——可以考慮是否要用再平衡規則,把超過的部分轉出。</p>` : `<p style="color:var(--green); font-size:12.5px; margin-top:8px;">目前在你設定的警戒線之內。</p>`}
+    </div>
+  `;
+}
+
+function renderTakeProfit(){
+  const list = document.getElementById('tpList');
+  list.innerHTML = '';
+  const satellites = state.holdings.filter(h=>h.category==='satellite');
+  satellites.forEach(h=>{
+    const ret = h.price/h.avgCost - 1;
+    const upTiers = state.tiers[h.ticker] || [];
+    const downTiers = state.stopTiers[h.ticker] || [];
+    const upHtml = upTiers.map((t,ti)=>{
+      const hit = ret*100 >= t.pct;
+      return `<div class="tier-row">
+        <span class="badge ${hit?'hit':'wait'}">${hit?'已觸發':'未到'}</span>
+        <span class="meta">漲到 +</span><input type="number" data-kind="up" data-ticker="${h.ticker}" data-idx="${ti}" data-field="pct" value="${t.pct}"><span class="meta">%,賣出</span>
+        <input type="number" data-kind="up" data-ticker="${h.ticker}" data-idx="${ti}" data-field="fraction" value="${t.fraction}"><span class="meta">%部位</span>
+        <button class="danger" data-remove-kind="up" data-remove-ticker="${h.ticker}" data-remove-idx="${ti}" style="padding:3px 9px;">刪除</button>
+      </div>`;
+    }).join('') || '<p class="empty">尚未設定止盈關卡</p>';
+    const downHtml = downTiers.map((t,ti)=>{
+      const hit = ret*100 <= -t.pct;
+      const typeLabel = t.type==='exit' ? '硬停損出場' : '重新檢視(不自動賣)';
+      return `<div class="tier-row">
+        <span class="badge ${hit?'warn':'wait'}">${hit?'已觸發':'未到'}</span>
+        <span class="meta">跌到 -</span><input type="number" data-kind="down" data-ticker="${h.ticker}" data-idx="${ti}" data-field="pct" value="${t.pct}"><span class="meta">%</span>
+        <select data-kind="down" data-ticker="${h.ticker}" data-idx="${ti}" data-field="type">
+          <option value="review" ${t.type==='review'?'selected':''}>重新檢視</option>
+          <option value="exit" ${t.type==='exit'?'selected':''}>硬停損出場</option>
+        </select>
+        <button class="danger" data-remove-kind="down" data-remove-ticker="${h.ticker}" data-remove-idx="${ti}" style="padding:3px 9px;">刪除</button>
+        <div style="flex-basis:100%;"><input type="text" data-kind="down" data-ticker="${h.ticker}" data-idx="${ti}" data-field="note" value="${t.note||''}" placeholder="這一關要提醒自己檢查什麼?" style="font-family:'Noto Sans TC'; margin-top:2px;"></div>
+      </div>`;
+    }).join('') || '<p class="empty">尚未設定停損關卡</p>';
+
+    const box = document.createElement('div');
+    box.style.marginBottom = '18px'; box.style.paddingBottom = '14px'; box.style.borderBottom = '1px solid var(--card-border)';
+    box.innerHTML = `
+      <div class="row" style="justify-content:space-between;">
+        <strong>${h.name}(${h.ticker})</strong>
+        <span class="${ret>=0?'pos':'neg'}" style="font-family:'JetBrains Mono'; font-weight:700;">目前 ${pct(ret)}</span>
+      </div>
+      <h3>止盈關卡</h3>
+      ${upHtml}
+      <button class="ghost" data-addtier="up" data-addticker="${h.ticker}" style="margin-top:4px;">+ 新增止盈關卡</button>
+      <h3>停損 / 重新檢視關卡</h3>
+      ${downHtml}
+      <button class="ghost" data-addtier="down" data-addticker="${h.ticker}" style="margin-top:4px;">+ 新增停損關卡</button>
+    `;
+    list.appendChild(box);
+  });
+
+  list.querySelectorAll('input,select').forEach(inp=>{
+    inp.addEventListener('change', e=>{
+      const kind = e.target.dataset.kind, t = e.target.dataset.ticker, idx = +e.target.dataset.idx, field = e.target.dataset.field;
+      const target = kind==='up' ? state.tiers : state.stopTiers;
+      if(field==='note' || field==='type') target[t][idx][field] = e.target.value;
+      else target[t][idx][field] = parseFloat(e.target.value) || 0;
+      save(kind==='up' ? 'tp-tiers' : 'sl-tiers', target);
+    });
+  });
+  list.querySelectorAll('[data-remove-ticker]').forEach(btn=>{
+    btn.addEventListener('click', async e=>{
+      const kind = e.target.dataset.removeKind, t = e.target.dataset.removeTicker, idx = +e.target.dataset.removeIdx;
+      const kindLabel = kind==='up' ? '止盈' : '停損';
+      const ok = await confirmDelete(`即將刪除 ${t} 的一個${kindLabel}關卡,刪除後無法復原。`);
+      if(!ok) return;
+      const target = kind==='up' ? state.tiers : state.stopTiers;
+      target[t].splice(idx,1);
+      save(kind==='up' ? 'tp-tiers' : 'sl-tiers', target);
+      renderTakeProfit();
+    });
+  });
+  list.querySelectorAll('[data-addtier]').forEach(btn=>{
+    btn.addEventListener('click', e=>{
+      const kind = e.target.dataset.addtier, t = e.target.dataset.addticker;
+      if(kind==='up'){ if(!state.tiers[t]) state.tiers[t]=[]; state.tiers[t].push({pct:20, fraction:25}); save('tp-tiers', state.tiers); }
+      else { if(!state.stopTiers[t]) state.stopTiers[t]=[]; state.stopTiers[t].push({pct:15, type:'review', note:''}); save('sl-tiers', state.stopTiers); }
+      renderTakeProfit();
+    });
+  });
+}
+
+function renderImpulseSelect(){
+  const sel = document.getElementById('impTicker');
+  sel.innerHTML = state.holdings.map(h=>`<option value="${h.ticker}">${h.name}(${h.ticker})</option>`).join('');
+}
+
+function renderJournal(){
+  const list = document.getElementById('journalList');
+  if(state.journal.length===0){ list.innerHTML = '<p class="empty">還沒有紀錄。想操作的時候,先來寫一筆。</p>'; return; }
+  const sorted = [...state.journal].sort((a,b)=>b.createdAt-a.createdAt);
+  list.innerHTML = sorted.map(j=>{
+    const now = Date.now();
+    const remain = j.cooldownUntil - now;
+    let statusHtml;
+    if(j.status==='confirmed'){ statusHtml = '<span class="badge hit">已執行</span>'; }
+    else if(j.status==='cancelled'){ statusHtml = '<span class="badge wait">已取消,沒有動作</span>'; }
+    else if(remain > 0){
+      const hrs = Math.floor(remain/3600000), mins = Math.floor((remain%3600000)/60000);
+      statusHtml = `<span class="badge warn">冷卻中,還剩 ${hrs} 小時 ${mins} 分</span>`;
+    } else {
+      statusHtml = `<span class="badge hit">冷卻結束,可以回顧了</span>
+        <button data-confirm="${j.id}" style="margin-left:8px; padding:4px 10px;">還是想做</button>
+        <button data-cancel="${j.id}" class="ghost" style="padding:4px 10px;">算了,不做了</button>`;
+    }
+    return `<div class="journal-item">
+      <div class="row" style="justify-content:space-between;">
+        <strong>${j.action} ${j.ticker}</strong>
+        <span class="meta">${new Date(j.createdAt).toLocaleString('zh-TW')}</span>
+      </div>
+      <p style="font-size:12.5px; margin:4px 0;">${j.reason || '(沒有寫理由)'}</p>
+      <div>${statusHtml}</div>
+    </div>`;
+  }).join('');
+  list.querySelectorAll('[data-confirm]').forEach(btn=>btn.addEventListener('click', e=>{
+    const j = state.journal.find(x=>x.id===e.target.dataset.confirm); if(j) j.status='confirmed';
+    save('impulse-journal', state.journal); renderJournal();
+  }));
+  list.querySelectorAll('[data-cancel]').forEach(btn=>btn.addEventListener('click', e=>{
+    const j = state.journal.find(x=>x.id===e.target.dataset.cancel); if(j) j.status='cancelled';
+    save('impulse-journal', state.journal); renderJournal();
+  }));
+}
+
+function renderDcaConfig(){
+  const box = document.getElementById('dcaConfig');
+  const tickers = Object.keys(state.dcaConfig);
+  box.innerHTML = tickers.map(t=>`
+    <div class="dca-row">
+      <span class="meta" style="min-width:70px;">${t}</span>
+      <input type="number" data-dca-ticker="${t}" value="${state.dcaConfig[t]}"> 元/月
+      <button class="danger" data-remove-dca="${t}" style="padding:4px 10px;">刪除</button>
+    </div>
+  `).join('') + `<p class="meta">每月合計 ${money(Object.values(state.dcaConfig).reduce((a,b)=>a+b,0))} 元</p>`;
+  box.querySelectorAll('[data-remove-dca]').forEach(btn=>{
+    btn.addEventListener('click', async e=>{
+      const t = e.target.dataset.removeDca;
+      const ok = await confirmDelete(`即將刪除定期定額標的「${t}」(每月 ${money(state.dcaConfig[t])} 元),已有的扣款紀錄不會受影響,但之後的扣款不會再包含它。`);
+      if(!ok) return;
+      delete state.dcaConfig[t];
+      await save('dca-data', {config: state.dcaConfig, log: state.dcaLog});
+      renderDcaConfig();
+    });
+  });
+}
+
+function renderDcaHistory(){
+  const box = document.getElementById('dcaHistory');
+  if(state.dcaLog.length===0){ box.innerHTML = '<p class="empty">還沒有扣款紀錄。</p>'; return; }
+  const totals = {};
+  state.dcaLog.forEach(e=>{ Object.keys(e.amounts).forEach(t=>{ totals[t]=(totals[t]||0)+e.amounts[t]; }); });
+  const totalsHtml = Object.keys(totals).map(t=>`<span class="meta">${t} 累計投入 ${money(totals[t])} 元　</span>`).join('');
+  const sorted = [...state.dcaLog].sort((a,b)=>b.date.localeCompare(a.date));
+  const rows = sorted.map(e=>`
+    <div class="dca-log-row">
+      <span class="meta">${e.date}　${Object.keys(e.amounts).map(t=>t+': '+money(e.amounts[t])).join('　')}</span>
+      <button class="danger" data-remove-log="${e.id}" style="padding:3px 9px;">刪除</button>
+    </div>
+  `).join('');
+  box.innerHTML = `<p>${totalsHtml}</p>${rows}`;
+  box.querySelectorAll('[data-remove-log]').forEach(btn=>{
+    btn.addEventListener('click', async e=>{
+      const logId = e.target.dataset.removeLog;
+      const entry = state.dcaLog.find(l=>l.id===logId);
+      const label = entry ? entry.date : '這筆';
+      const ok = await confirmDelete(`即將刪除 ${label} 的扣款紀錄,刪除後累計投入金額會跟著重算,無法復原。`);
+      if(!ok) return;
+      state.dcaLog = state.dcaLog.filter(l=>l.id !== logId);
+      await save('dca-data', {config: state.dcaConfig, log: state.dcaLog});
+      renderDcaHistory();
+    });
+  });
+}
+
+function renderInvestCurve(){
+  const box = document.getElementById('investCurve');
+  const snaps = state.snapshots;
+  if(snaps.length < 2){
+    box.innerHTML = '<p class="empty">快照少於兩筆,還畫不出曲線。每次按「儲存現價」會自動留一筆當日快照,累積幾次之後這裡就會出現走勢。</p>';
+    return;
+  }
+  const W=640, H=200, padL=54, padR=16, padT=16, padB=30;
+  const costs = snaps.map(s=>s.totalCost), values = snaps.map(s=>s.totalValue);
+  const min = Math.min(...costs, ...values), max = Math.max(...costs, ...values);
+  const range = (max-min) || 1;
+  const x = i => padL + i*(W-padL-padR)/(snaps.length-1);
+  const y = v => padT + (H-padT-padB) - ((v-min)/range)*(H-padT-padB);
+  function path(arr){
+    let d = 'M ' + x(0) + ' ' + y(arr[0]);
+    for(let i=1;i<arr.length;i++){ d += ' L ' + x(i) + ' ' + y(arr[i]); }
+    return d;
+  }
+  const costDots = snaps.map((s,i)=>`<circle cx="${x(i)}" cy="${y(s.totalCost)}" r="3" fill="#C9A227"/>`).join('');
+  const valDots = snaps.map((s,i)=>`<circle cx="${x(i)}" cy="${y(s.totalValue)}" r="3" fill="#5FA37D"/>`).join('');
+  box.innerHTML = `
+    <div class="row" style="gap:16px; margin-bottom:4px;">
+      <span class="meta"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#C9A227;margin-right:5px;"></span>投入成本</span>
+      <span class="meta"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#5FA37D;margin-right:5px;"></span>市值</span>
+    </div>
+    <svg viewBox="0 0 ${W} ${H}" style="width:100%; height:auto;">
+      <line x1="${padL}" y1="${H-padB}" x2="${W-padR}" y2="${H-padB}" stroke="rgba(232,227,212,0.15)"/>
+      <path d="${path(costs)}" fill="none" stroke="#C9A227" stroke-width="2"/>
+      <path d="${path(values)}" fill="none" stroke="#5FA37D" stroke-width="2"/>
+      ${costDots}${valDots}
+      <text x="${padL}" y="${H-8}" font-size="9" fill="#8A97AC" font-family="JetBrains Mono">${snaps[0].date}</text>
+      <text x="${W-padR}" y="${H-8}" font-size="9" fill="#8A97AC" text-anchor="end" font-family="JetBrains Mono">${snaps[snaps.length-1].date}</text>
+      <text x="4" y="${y(max)+4}" font-size="9" fill="#8A97AC" font-family="JetBrains Mono">${money(max)}</text>
+      <text x="4" y="${y(min)+4}" font-size="9" fill="#8A97AC" font-family="JetBrains Mono">${money(min)}</text>
+    </svg>`;
+}
+
+function renderAll(){
+  renderDashboard(); renderConcentration(); renderTakeProfit();
+  renderImpulseSelect(); renderJournal(); renderDcaConfig(); renderDcaHistory();
+  renderInvestCurve();
+}
+
+document.querySelectorAll('.tab').forEach(tab=>{
+  tab.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById(tab.dataset.tab).classList.add('active');
+  });
+});
+
+document.getElementById('saveDashboard').addEventListener('click', async ()=>{
+  state.settings.lastUpdated = Date.now();
+  await save('portfolio-data', {holdings: state.holdings, settings: state.settings});
+  // 留一筆當日快照供報表使用,同一天重複儲存就覆蓋
+  const d = new Date();
+  const today = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  const totalValue = state.holdings.reduce((s,h)=>s+h.shares*h.price,0);
+  const totalCost = state.holdings.reduce((s,h)=>s+h.shares*h.avgCost,0);
+  state.snapshots = state.snapshots.filter(s=>s.date !== today);
+  state.snapshots.push({date: today, totalValue, totalCost});
+  state.snapshots.sort((a,b)=>a.date.localeCompare(b.date));
+  await save('value-snapshots', state.snapshots);
+  renderDashboard(); renderConcentration(); renderTakeProfit(); renderInvestCurve();
+});
+let editingIndex = null;
+
+function closeHoldingModal(){
+  document.getElementById('holdingModal').classList.remove('show');
+  document.getElementById('addHolding').textContent = '確認新增';
+  editingIndex = null;
+}
+
+document.getElementById('toggleAddHolding').addEventListener('click', ()=>{
+  editingIndex = null;
+  document.getElementById('holdingFormTitle').textContent = '新增標的';
+  document.getElementById('addHolding').textContent = '確認新增';
+  ['newHTicker','newHName','newHShares','newHCost','newHPrice'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('newHCategory').value = 'satellite';
+  document.getElementById('holdingModal').classList.add('show');
+});
+
+document.getElementById('holdingModalCancel').addEventListener('click', closeHoldingModal);
+document.getElementById('holdingModal').addEventListener('click', e=>{
+  if(e.target === document.getElementById('holdingModal')) closeHoldingModal();
+});
+
+document.getElementById('addHolding').addEventListener('click', async ()=>{
+  const ticker = document.getElementById('newHTicker').value.trim();
+  const name = document.getElementById('newHName').value.trim() || ticker;
+  const category = document.getElementById('newHCategory').value;
+  const shares = parseFloat(document.getElementById('newHShares').value) || 0;
+  const avgCost = parseFloat(document.getElementById('newHCost').value) || 0;
+  const price = parseFloat(document.getElementById('newHPrice').value) || avgCost;
+  if(!ticker || !shares || !avgCost){ return; }
+
+  if(editingIndex !== null){
+    // 編輯模式:更新原有標的,關卡設定跟著代碼搬家
+    const old = state.holdings[editingIndex];
+    if(ticker !== old.ticker){
+      if(state.holdings.some((h,i)=>h.ticker===ticker && i!==editingIndex)){ return; }
+      if(state.tiers[old.ticker]){ state.tiers[ticker] = state.tiers[old.ticker]; delete state.tiers[old.ticker]; }
+      if(state.stopTiers[old.ticker]){ state.stopTiers[ticker] = state.stopTiers[old.ticker]; delete state.stopTiers[old.ticker]; }
+    }
+    if(category==='satellite' && !state.tiers[ticker]){
+      state.tiers[ticker] = [{pct:20,fraction:25},{pct:40,fraction:25},{pct:60,fraction:25}];
+      state.stopTiers[ticker] = [{pct:20,type:'review',note:''}];
+    }
+    state.holdings[editingIndex] = {ticker, name, category, shares, avgCost, price};
+    editingIndex = null;
+  } else {
+    if(state.holdings.some(h=>h.ticker===ticker)){ return; }
+    state.holdings.push({ticker, name, category, shares, avgCost, price});
+    if(category==='satellite'){
+      state.tiers[ticker] = [{pct:20,fraction:25},{pct:40,fraction:25},{pct:60,fraction:25}];
+      state.stopTiers[ticker] = [{pct:20,type:'review',note:''}];
+    }
+  }
+  await save('tp-tiers', state.tiers);
+  await save('sl-tiers', state.stopTiers);
+  state.settings.lastUpdated = Date.now();
+  await save('portfolio-data', {holdings: state.holdings, settings: state.settings});
+  ['newHTicker','newHName','newHShares','newHCost','newHPrice'].forEach(id=>document.getElementById(id).value='');
+  closeHoldingModal();
+  renderAll();
+});
+
+document.getElementById('saveConc').addEventListener('click', async ()=>{
+  const newWeight = parseFloat(document.getElementById('tsmcWeight').value) || state.settings.tsmcWeight;
+  if(newWeight !== state.settings.tsmcWeight){
+    // 手動更新了權重,順便記下更新日期
+    const d = new Date();
+    state.settings.tsmcWeightAsOf = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+  state.settings.tsmcWeight = newWeight;
+  state.settings.concLimit = parseFloat(document.getElementById('concLimit').value) || state.settings.concLimit;
+  await save('portfolio-data', {holdings: state.holdings, settings: state.settings});
+  renderConcentration();
+});
+
+document.getElementById('impCooldown').value = 24;
+document.getElementById('addImpulse').addEventListener('click', async ()=>{
+  const ticker = document.getElementById('impTicker').value;
+  const action = document.getElementById('impAction').value;
+  const reason = document.getElementById('impReason').value.trim();
+  const hours = parseFloat(document.getElementById('impCooldown').value) || 24;
+  const now = Date.now();
+  state.journal.push({ id:'j'+now+Math.random().toString(36).slice(2,6), ticker, action, reason, createdAt: now, cooldownUntil: now + hours*3600000, status:'pending' });
+  document.getElementById('impReason').value = '';
+  await save('impulse-journal', state.journal);
+  renderJournal();
+});
+
+document.getElementById('addDcaTarget').addEventListener('click', async ()=>{
+  const t = document.getElementById('newDcaTicker').value.trim();
+  const amt = parseFloat(document.getElementById('newDcaAmount').value);
+  if(!t || !amt){ return; }
+  state.dcaConfig[t] = amt;
+  document.getElementById('newDcaTicker').value=''; document.getElementById('newDcaAmount').value='';
+  await save('dca-data', {config: state.dcaConfig, log: state.dcaLog});
+  renderDcaConfig();
+});
+document.getElementById('saveDcaConfig').addEventListener('click', async ()=>{
+  document.querySelectorAll('[data-dca-ticker]').forEach(inp=>{ state.dcaConfig[inp.dataset.dcaTicker] = parseFloat(inp.value) || 0; });
+  await save('dca-data', {config: state.dcaConfig, log: state.dcaLog});
+  renderDcaConfig();
+});
+document.getElementById('logDca').addEventListener('click', async ()=>{
+  const d = new Date();
+  const today = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  state.dcaLog.push({id:'d'+Date.now(), date: today, amounts: {...state.dcaConfig}});
+  await save('dca-data', {config: state.dcaConfig, log: state.dcaLog});
+  renderDcaHistory();
+});
+
+// ===== 報表功能 =====
+function sparklineSvg(snaps){
+  if(snaps.length < 2) return '<p class="meta">期間內的快照少於兩筆,無法繪製走勢(每次在總覽按「儲存現價」會自動留一筆當日快照)。</p>';
+  const W=620, H=140, pad=28;
+  const vals = snaps.map(s=>s.totalValue);
+  const min = Math.min(...vals), max = Math.max(...vals);
+  const range = (max-min) || 1;
+  const x = i => pad + i*(W-pad*2)/(snaps.length-1);
+  const y = v => pad + (H-pad*2) - ((v-min)/range)*(H-pad*2);
+  let d = 'M ' + x(0) + ' ' + y(vals[0]);
+  for(let i=1;i<vals.length;i++){ d += ' L ' + x(i) + ' ' + y(vals[i]); }
+  const dots = snaps.map((s,i)=>`<circle cx="${x(i)}" cy="${y(s.totalValue)}" r="3" fill="#C9A227"/>`).join('');
+  const firstLabel = snaps[0].date, lastLabel = snaps[snaps.length-1].date;
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%; height:auto;">
+    <line x1="${pad}" y1="${H-pad}" x2="${W-pad}" y2="${H-pad}" stroke="rgba(232,227,212,0.15)"/>
+    <path d="${d}" fill="none" stroke="#C9A227" stroke-width="2"/>
+    ${dots}
+    <text x="${pad}" y="${H-8}" font-size="9" fill="#8A97AC" font-family="JetBrains Mono">${firstLabel}</text>
+    <text x="${W-pad}" y="${H-8}" font-size="9" fill="#8A97AC" text-anchor="end" font-family="JetBrains Mono">${lastLabel}</text>
+    <text x="${pad}" y="${y(max)-6}" font-size="9" fill="#8A97AC" font-family="JetBrains Mono">${money(max)}</text>
+    <text x="${pad}" y="${y(min)+14}" font-size="9" fill="#8A97AC" font-family="JetBrains Mono">${money(min)}</text>
+  </svg>`;
+}
+
+function buildReport(startStr, endStr){
+  const inRange = dateStr => (!startStr || dateStr >= startStr) && (!endStr || dateStr <= endStr);
+  const tsToDate = ts => { const d=new Date(ts); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
+
+  let totalCost=0, totalValue=0;
+  const holdingRows = state.holdings.map(h=>{
+    const cost=h.shares*h.avgCost, value=h.shares*h.price, ret= cost? value/cost-1 : 0;
+    totalCost+=cost; totalValue+=value;
+    return `<tr><td>${h.ticker}</td><td>${h.name}</td><td class="meta">${h.category==='core'?'核心':'衛星'}</td>
+      <td class="num">${h.shares}</td><td class="num">${h.avgCost}</td><td class="num">${h.price}</td>
+      <td class="num">${money(value)}</td><td class="num" style="color:${ret>=0?'#5FA37D':'#C0524A'}">${pct(ret)}</td></tr>`;
+  }).join('');
+  const totalRet = totalCost ? totalValue/totalCost-1 : 0;
+  const ex = tsmcExposure();
+
+  const snapsInRange = state.snapshots.filter(s=>inRange(s.date));
+  const dcaInRange = state.dcaLog.filter(l=>inRange(l.date));
+  const dcaTotals = {};
+  dcaInRange.forEach(e=>{ Object.keys(e.amounts).forEach(t=>{ dcaTotals[t]=(dcaTotals[t]||0)+e.amounts[t]; }); });
+  const dcaGrand = Object.values(dcaTotals).reduce((a,b)=>a+b,0);
+  const dcaRows = Object.keys(dcaTotals).map(t=>`<tr><td>${t}</td><td class="num">${dcaInRange.filter(l=>l.amounts[t]).length} 次</td><td class="num">${money(dcaTotals[t])}</td></tr>`).join('');
+
+  const journalInRange = state.journal.filter(j=>inRange(tsToDate(j.createdAt)));
+  const statusLabel = {pending:'冷卻中', confirmed:'冷卻後仍執行', cancelled:'冷卻後放棄'};
+  const cancelled = journalInRange.filter(j=>j.status==='cancelled').length;
+  const journalHtml = journalInRange.length===0
+    ? '<p class="meta">期間內沒有衝動日誌紀錄。</p>'
+    : journalInRange.sort((a,b)=>b.createdAt-a.createdAt).map(j=>
+        `<div class="rp-journal-item"><strong>${j.action} ${j.ticker}</strong> — ${statusLabel[j.status]||j.status}
+        <span class="meta">${new Date(j.createdAt).toLocaleDateString('zh-TW')}　${j.reason||'(沒有寫理由)'}</span></div>`
+      ).join('');
+
+  const periodLabel = (startStr||'最早') + ' ～ ' + (endStr||'今天');
+  const now = new Date().toLocaleString('zh-TW');
+
+  return `<div class="report-page" id="reportContent">
+    <div class="rp-eyebrow">Portfolio Report</div>
+    <h1>投資策略追蹤報表</h1>
+    <div class="rp-period">報表期間 ${periodLabel}　·　產生時間 ${now}</div>
+    <div class="rp-kpis">
+      <div class="rp-kpi"><div class="k-label">總市值 (NTD)</div><div class="k-value">${money(totalValue)}</div></div>
+      <div class="rp-kpi"><div class="k-label">整體報酬率</div><div class="k-value" style="color:${totalRet>=0?'#5FA37D':'#C0524A'}">${pct(totalRet)}</div></div>
+      <div class="rp-kpi"><div class="k-label">台積電總曝險</div><div class="k-value" style="color:${ex.pctOfPortfolio>state.settings.concLimit?'#C0524A':'#C9A227'}">${ex.pctOfPortfolio.toFixed(1)}%</div></div>
+    </div>
+    <h2>資產走勢(期間內快照)</h2>
+    ${sparklineSvg(snapsInRange)}
+    <h2>持股明細(目前快照)</h2>
+    <table>
+      <thead><tr><th>代碼</th><th>名稱</th><th>分類</th><th class="num">股數</th><th class="num">均價</th><th class="num">現價</th><th class="num">市值</th><th class="num">報酬率</th></tr></thead>
+      <tbody>${holdingRows}</tbody>
+    </table>
+    <h2>定期定額(期間內)</h2>
+    ${dcaInRange.length===0 ? '<p class="meta">期間內沒有扣款紀錄。</p>' : `
+    <table><thead><tr><th>標的</th><th class="num">扣款次數</th><th class="num">累計投入</th></tr></thead>
+    <tbody>${dcaRows}</tbody></table>
+    <p class="meta" style="margin-top:6px;">期間合計投入 ${money(dcaGrand)} 元</p>`}
+    <h2>衝動控制回顧(期間內)</h2>
+    ${journalInRange.length>0 ? `<p class="meta" style="margin-bottom:6px;">共 ${journalInRange.length} 筆紀錄,其中 ${cancelled} 筆在冷卻後選擇不動作。</p>` : ''}
+    ${journalHtml}
+    <div class="rp-footer">此報表由個人投資追蹤工具產生,數據為手動輸入的紀錄,現價非即時行情。內容僅供個人記錄與回顧,不構成投資建議。集中度計算採用 0050 台積電權重 ${state.settings.tsmcWeight}%${state.settings.tsmcWeightAsOf ? '(資料時間 '+state.settings.tsmcWeightAsOf+')' : ''}。</div>
+  </div>`;
+}
+
+document.getElementById('genReport').addEventListener('click', ()=>{
+  const start = document.getElementById('reportStart').value;
+  const end = document.getElementById('reportEnd').value;
+  const statusEl = document.getElementById('reportStatus');
+  if(start && end && start > end){ statusEl.textContent='起始日期不能晚於結束日期。'; statusEl.className='status-msg error'; return; }
+  statusEl.textContent=''; statusEl.className='status-msg';
+  document.getElementById('reportWrap').innerHTML = buildReport(start, end);
+  document.getElementById('dlPng').disabled = false;
+  document.getElementById('dlPdf').disabled = false;
+});
+
+async function reportToCanvas(){
+  const el = document.getElementById('reportContent');
+  if(!el) throw new Error('請先產生報表');
+  return await html2canvas(el, {scale:2, backgroundColor:'#0F1B2B', useCORS:true});
+}
+function todayStamp(){
+  const d=new Date();
+  return d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0');
+}
+
+document.getElementById('dlPng').addEventListener('click', async ()=>{
+  const statusEl = document.getElementById('reportStatus');
+  try{
+    statusEl.textContent='正在產生圖片...'; statusEl.className='status-msg';
+    const canvas = await reportToCanvas();
+    const link = document.createElement('a');
+    link.download = '投資報表_' + todayStamp() + '.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+    statusEl.textContent='PNG 已下載。';
+  }catch(err){ statusEl.textContent='匯出失敗: '+err.message; statusEl.className='status-msg error'; }
+});
+
+document.getElementById('dlPdf').addEventListener('click', async ()=>{
+  const statusEl = document.getElementById('reportStatus');
+  try{
+    statusEl.textContent='正在產生 PDF...'; statusEl.className='status-msg';
+    const canvas = await reportToCanvas();
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jspdf.jsPDF({orientation:'portrait', unit:'mm', format:'a4'});
+    const pageW = 210, pageH = 297, margin = 10;
+    const imgW = pageW - margin*2;
+    const imgH = canvas.height * imgW / canvas.width;
+    if(imgH <= pageH - margin*2){
+      pdf.addImage(imgData, 'PNG', margin, margin, imgW, imgH);
+    } else {
+      // 長報表切成多頁
+      let remaining = imgH, offsetY = 0;
+      const pageContentH = pageH - margin*2;
+      const pxPerMm = canvas.height / imgH;
+      while(remaining > 0){
+        const sliceH = Math.min(pageContentH, remaining);
+        const slicePx = Math.floor(sliceH * pxPerMm);
+        const sliceCanvas = document.createElement('canvas');
+        sliceCanvas.width = canvas.width; sliceCanvas.height = slicePx;
+        const ctx = sliceCanvas.getContext('2d');
+        ctx.drawImage(canvas, 0, Math.floor(offsetY*pxPerMm), canvas.width, slicePx, 0, 0, canvas.width, slicePx);
+        if(offsetY > 0) pdf.addPage();
+        pdf.addImage(sliceCanvas.toDataURL('image/png'), 'PNG', margin, margin, imgW, sliceH);
+        offsetY += sliceH; remaining -= sliceH;
+      }
+    }
+    pdf.save('投資報表_' + todayStamp() + '.pdf');
+    statusEl.textContent='PDF 已下載。';
+  }catch(err){ statusEl.textContent='匯出失敗: '+err.message; statusEl.className='status-msg error'; }
+});
+
+setInterval(()=>{ if(document.getElementById('impulse').classList.contains('active')) renderJournal(); }, 60000);
+
+// ===== 同步與備份 UI =====
+document.getElementById('genSyncCode').addEventListener('click', ()=>{
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+  let code = '';
+  const rnd = new Uint32Array(24);
+  crypto.getRandomValues(rnd);
+  for(let i=0;i<24;i++){ code += chars[rnd[i] % chars.length]; }
+  document.getElementById('syncCodeInput').value = code;
+  setSyncMsg('已產生一組隨機同步碼,按「套用同步碼」啟用。請把這組碼另外抄下來保存——這是你在其他裝置取回資料的唯一鑰匙。');
+});
+
+document.getElementById('applySyncCode').addEventListener('click', async ()=>{
+  const code = document.getElementById('syncCodeInput').value.trim();
+  if(!fsDb){ setSyncMsg('雲端服務未載入,無法設定同步。請確認網路連線後重新整理頁面。', true); return; }
+  if(code.length < 12){ setSyncMsg('同步碼至少要 12 個字元,太短容易被猜到。建議直接按「產生」。', true); return; }
+  if(/[\s\/\\]/.test(code)){ setSyncMsg('同步碼不能包含空白或斜線。', true); return; }
+  syncCode = code;
+  localSet('pt-sync-code', code);
+  setSyncMsg('同步碼已套用,正在載入雲端資料...');
+  await loadState();
+  renderAll();
+  updateSyncStatus();
+  setSyncMsg('完成。之後的每次儲存都會自動同步到雲端。');
+});
+
+document.getElementById('exportData').addEventListener('click', ()=>{
+  const backup = {
+    exportedAt: new Date().toISOString(),
+    version: 1,
+    data: {
+      'portfolio-data': {holdings: state.holdings, settings: state.settings},
+      'tp-tiers': state.tiers,
+      'sl-tiers': state.stopTiers,
+      'impulse-journal': state.journal,
+      'dca-data': {config: state.dcaConfig, log: state.dcaLog},
+      'value-snapshots': state.snapshots
+    }
+  };
+  const blob = new Blob([JSON.stringify(backup, null, 2)], {type:'application/json'});
+  const link = document.createElement('a');
+  link.download = '投資追蹤備份_' + todayStamp() + '.json';
+  link.href = URL.createObjectURL(blob);
+  link.click();
+  URL.revokeObjectURL(link.href);
+  setSyncMsg('備份已下載。');
+});
+
+document.getElementById('importDataBtn').addEventListener('click', ()=>{
+  document.getElementById('importFile').click();
+});
+document.getElementById('importFile').addEventListener('change', async e=>{
+  const file = e.target.files && e.target.files[0];
+  if(!file) return;
+  try{
+    const text = await file.text();
+    const backup = JSON.parse(text);
+    if(!backup.data){ throw new Error('這不是本工具的備份檔格式'); }
+    const d = backup.data;
+    if(d['portfolio-data']){ state.holdings = d['portfolio-data'].holdings || state.holdings; state.settings = Object.assign({}, DEFAULT_SETTINGS, d['portfolio-data'].settings || {}); }
+    if(d['tp-tiers']) state.tiers = d['tp-tiers'];
+    if(d['sl-tiers']) state.stopTiers = d['sl-tiers'];
+    if(d['impulse-journal']) state.journal = d['impulse-journal'];
+    if(d['dca-data']){ state.dcaConfig = d['dca-data'].config || state.dcaConfig; state.dcaLog = d['dca-data'].log || []; }
+    if(d['value-snapshots']) state.snapshots = d['value-snapshots'];
+    await saveAllKeys();
+    renderAll();
+    setSyncMsg('備份匯入完成,資料已還原' + (fsDb && syncCode ? '並同步到雲端。' : '。'));
+  }catch(err){
+    setSyncMsg('匯入失敗: ' + err.message, true);
+  }
+  e.target.value = '';
+});
+
+(async ()=>{
+  initFirebase();
+  syncCode = localGet('pt-sync-code');
+  if(syncCode){ const inp = document.getElementById('syncCodeInput'); if(inp) inp.value = syncCode; }
+  await loadState();
+  renderAll();
+  updateSyncStatus();
+})();
+</script>
+</body>
+</html>
