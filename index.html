@@ -91,6 +91,15 @@
   .modal-box p{font-size:13px; line-height:1.6; margin:0 0 16px; color:var(--ink);}
   .modal-actions{display:flex; gap:10px; justify-content:flex-end;}
   .modal-actions .confirm-del{background:var(--red); color:#fff;}
+  .help-btn{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:18px; height:18px; border-radius:50%; padding:0;
+    background:transparent; border:1px solid var(--card-border); color:var(--muted);
+    font-size:11px; font-weight:700; cursor:pointer; vertical-align:middle; margin-left:6px;
+  }
+  .help-btn:hover{border-color:var(--gold); color:var(--gold);}
+  #helpModalContent p{font-size:12.5px; line-height:1.8; margin:0 0 10px; color:var(--ink);}
+  #helpModalContent p:last-child{margin-bottom:0;}
   .modal-box.form-modal{border-color:rgba(201,162,39,0.45); max-width:400px;}
   .form-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
   .form-grid label{font-size:11.5px; color:var(--muted); display:flex; flex-direction:column; gap:4px;}
@@ -154,7 +163,7 @@
 
   <div id="dashboard" class="panel active">
     <div class="card">
-      <h2>持股總覽</h2>
+      <h2>持股總覽<button class="help-btn" data-help="dashboard">?</button></h2>
       <p class="desc">現價可以直接手動更新,或用截圖辨識自動帶入,填完按「儲存」就會留住這次的紀錄。</p>
       <div class="table-scroll">
       <table>
@@ -202,7 +211,7 @@
 
   <div id="concentration" class="panel">
     <div class="card">
-      <h2>AI 供應鏈集中度</h2>
+      <h2>AI 供應鏈集中度<button class="help-btn" data-help="concentration">?</button></h2>
       <p class="desc">算你的資產有多少比例最終曝險在台積電(直接持有 + 透過台灣50間接持有)。這個數字決定你的資產命運有多依賴同一家公司。</p>
       <div class="row"><label>0050 中台積電權重</label><input type="number" id="tsmcWeight" step="0.01"> %</div>
       <div class="row">
@@ -218,7 +227,7 @@
 
   <div id="takeprofit" class="panel">
     <div class="card">
-      <h2>分批止盈 / 停損規劃</h2>
+      <h2>分批止盈 / 停損規劃<button class="help-btn" data-help="takeprofit">?</button></h2>
       <p class="desc">針對衛星部位(非核心的台灣50、台積電),分別設定上漲跟下跌的關卡。停損關卡可以選「硬停損出場」或「重新檢視點」——後者不會自動賣,只是提醒你回去檢查基本面邏輯還在不在。</p>
       <div id="tpList"></div>
     </div>
@@ -226,7 +235,7 @@
 
   <div id="impulse" class="panel">
     <div class="card">
-      <h2>衝動控制日誌</h2>
+      <h2>衝動控制日誌<button class="help-btn" data-help="impulse">?</button></h2>
       <p class="desc">想買想賣的當下,先寫在這裡,不要直接下單。冷卻時間到了之後,回來看看自己還想不想做。</p>
       <div class="row"><label>標的</label><select id="impTicker"></select></div>
       <div class="row"><label>想做什麼</label>
@@ -246,7 +255,7 @@
 
   <div id="dca" class="panel">
     <div class="card">
-      <h2>定期定額設定</h2>
+      <h2>定期定額設定<button class="help-btn" data-help="dca">?</button></h2>
       <p class="desc">可以新增、修改或刪除標的,金額調整之後記得按儲存。</p>
       <div id="dcaConfig"></div>
       <div class="dca-row">
@@ -287,7 +296,7 @@
 
   <div id="report" class="panel">
     <div class="card">
-      <h2>產生報表</h2>
+      <h2>產生報表<button class="help-btn" data-help="report">?</button></h2>
       <p class="desc">選擇時間區間,報表會包含目前的持股快照、集中度、期間內的資產變化(需要有儲存過現價的紀錄)、扣款紀錄與衝動日誌回顧。產生後可以下載成 PNG 圖片或 PDF。</p>
       <div class="row">
         <label>起始日期</label><input type="date" id="reportStart" style="max-width:150px;">
@@ -375,6 +384,16 @@ service cloud.firestore {
       <button class="ghost" id="customCloudReset">恢復預設雲端</button>
       <button class="ghost" id="customCloudCancel">關閉</button>
       <button id="customCloudApply">套用</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="helpModal">
+  <div class="modal-box form-modal" style="max-width:460px; max-height:78vh; overflow-y:auto;">
+    <h3 style="color:var(--gold);" id="helpModalTitle"></h3>
+    <div id="helpModalContent"></div>
+    <div class="modal-actions" style="margin-top:14px;">
+      <button class="ghost" id="helpModalClose">關閉</button>
     </div>
   </div>
 </div>
@@ -1360,6 +1379,51 @@ function initTriggerBaseline(){
   });
   return changed;
 }
+
+// ===== 分頁說明(問號按鈕)=====
+const HELP_CONTENT = {
+  dashboard: { title: '總覽在做什麼', body: `
+    <p>這裡記錄你的持股。現價要<strong>手動更新</strong>(查完最新報價填進去),按「儲存現價」會留住紀錄,並自動存一筆當日快照。</p>
+    <p>下方的投資金額曲線就是靠快照畫的:金色是投入成本、綠色是市值,兩條線的距離就是帳面損益。同一天重複儲存只會更新當天那筆,所以曲線要<strong>跨日累積</strong>才會出現。</p>
+    <p>買進新部位後,記得按該檔的「編輯」更新股數跟平均成本,再儲存一次——成本線才會跳上去。</p>
+    <p>最下面的雲端同步:同步碼是這份資料的唯一鑰匙,在任何裝置輸入同一組碼就能看到同一份資料。<strong>同步碼弄丟就拿不回雲端資料</strong>,請務必另外保存。</p>` },
+  concentration: { title: '集中度監控在做什麼', body: `
+    <p>它回答一個容易被忽略的問題:<strong>你以為的分散,是真的分散嗎?</strong></p>
+    <p>如果你同時持有台積電跟 0050,你的台積電曝險不只是直接持股——0050 裡面有將近六成也是台積電。這頁把「直接+間接」加總,算出你的資產實際上有多少比例壓在同一家公司。</p>
+    <p>超過你設定的警戒線會變紅提醒,可以考慮再平衡。0050 的權重每季調整(3、6、9、12 月),一季回來更新一次數字就夠。</p>` },
+  takeprofit: { title: '止盈/停損在做什麼', body: `
+    <p>核心精神:<strong>規則在冷靜時定好,執行時只是照做</strong>——不在盤中看心情決定。</p>
+    <p><strong>止盈關卡</strong>:漲到某個 % 就賣出一部分(例如 +20% 賣 25%),鎖住部分獲利、保留部位參與後續漲幅。</p>
+    <p><strong>停損關卡</strong>分兩種:「重新檢視」是提醒你回去查基本面邏輯還在不在(不是叫你馬上賣);「硬停損出場」才是真正的離場規則。價格下跌但買進理由沒變,可能是加碼機會而不是逃命訊號。</p>
+    <p><strong>🔔提醒開關</strong>:按「儲存現價」時,只有<strong>新跨過</strong>的關卡會跳窗——同一件已知的事不會重複轟炸你。你手動關掉的提醒,系統不會自作主張打開;想重新盯,回來勾選即可。</p>` },
+  impulse: { title: '衝動控制在做什麼', body: `
+    <p>這是整個工具最重要的一頁。它針對的是「看到帳面數字不舒服→馬上想操作」這個反射。</p>
+    <p>想買想賣的當下,<strong>先來這裡寫一筆,不要直接下單</strong>:寫下標的、想做什麼、為什麼。系統會幫你倒數冷卻(預設 24 小時),時間到才會問你「還想做嗎」。</p>
+    <p>寫理由的過程本身就是檢查:如果隔天回來連自己寫的理由都覺得薄弱,那就是情緒,不是判斷。冷卻後選「算了」的紀錄,是你紀律進步最直接的證據——報表會幫你統計。</p>` },
+  dca: { title: '定期定額在做什麼', body: `
+    <p>記錄你每月固定扣款的標的跟金額。每次實際扣款後按「記錄本月已扣款」,累計投入金額會自動加總。</p>
+    <p>定期定額的意義是<strong>拉平進場成本、去除擇時焦慮</strong>——不管高低都買。它跟止盈規則不衝突:可以一邊定期買進,一邊在漲到關卡時執行部分止盈,買賣是兩條獨立的規則。</p>` },
+  report: { title: '報表在做什麼', body: `
+    <p>把你的紀錄整理成一頁可以下載的報表(PNG 圖片或 PDF),包含持股快照、資產走勢、期間內的扣款統計跟衝動日誌回顧。</p>
+    <p>日期留空就是不限期間。資產走勢需要期間內至少兩筆快照(每次儲存現價自動留一筆),所以持續使用越久,報表越有內容。</p>
+    <p>衝動日誌那段特別值得回顧:「冷卻後選擇不動作」的筆數,就是規則幫你擋下了幾次情緒操作。</p>` }
+};
+document.querySelectorAll('.help-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const key = btn.dataset.help;
+    const c = HELP_CONTENT[key];
+    if(!c) return;
+    document.getElementById('helpModalTitle').textContent = c.title;
+    document.getElementById('helpModalContent').innerHTML = c.body;
+    document.getElementById('helpModal').classList.add('show');
+  });
+});
+document.getElementById('helpModalClose').addEventListener('click', ()=>{
+  document.getElementById('helpModal').classList.remove('show');
+});
+document.getElementById('helpModal').addEventListener('click', e=>{
+  if(e.target === document.getElementById('helpModal')) document.getElementById('helpModal').classList.remove('show');
+});
 
 (async ()=>{
   initFirebase();
