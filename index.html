@@ -140,7 +140,7 @@
 <body>
 <div class="wrap">
   <h1>投資策略追蹤系統</h1>
-  <p class="sub">這裡不會自動連網抓即時股價,但可以上傳報價截圖讓 AI 幫你辨識,也可以手動輸入。把之前聊過的規則都變成看得到的數字——集中度、分批止盈、停損檢查點、衝動冷卻。</p>
+  <p class="sub">這裡不會自動連網抓即時股價,現價由你手動更新。把之前聊過的規則都變成看得到的數字——集中度、分批止盈、停損檢查點、衝動冷卻。</p>
 
   <div class="tabs">
     <div class="tab active" data-tab="dashboard">總覽</div>
@@ -277,9 +277,10 @@
     <div class="card">
       <h2>系統資訊</h2>
       <div class="meta">
-        <p>此工具運行在瀏覽器的本地儲存空間內,所有資料保留在你的裝置上,不會上傳到任何伺服器。</p>
-        <p style="margin-top:6px;">資料包含:持股記錄、快照歷史、定期定額、衝動日誌、止盈/停損關卡、集中度設定等。</p>
-        <p style="margin-top:6px;">建議定期備份,避免意外遺失。清除瀏覽器快取/資料時會同時清除此工具的所有紀錄。</p>
+        <p>啟用雲端同步後,每次儲存時資料會上傳到雲端資料庫(Google Firebase / Firestore),同時在此裝置保留一份本地副本。只有持有你同步碼的人能存取雲端上的這份資料,請妥善保管同步碼。</p>
+        <p style="margin-top:6px;">未設定同步碼時,資料只存在這台裝置的瀏覽器裡,清除瀏覽器快取/資料會一併清除所有紀錄。</p>
+        <p style="margin-top:6px;">資料包含:持股記錄、快照歷史、定期定額、衝動日誌、止盈/停損關卡、集中度設定等。建議定期用「匯出備份」留存一份檔案。</p>
+        <p style="margin-top:10px;"><button id="openCustomCloud" class="ghost">連接自己的雲端(進階)</button></p>
       </div>
     </div>
   </div>
@@ -333,6 +334,51 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="triggerModal">
+  <div class="modal-box form-modal" style="max-width:440px;">
+    <h3 style="color:var(--gold);">📣 有關卡剛剛觸發了</h3>
+    <p style="font-size:12.5px; color:var(--muted); margin:0 0 12px; line-height:1.6;">以下是這次更新現價後<strong style="color:var(--ink);">新跨過</strong>的關卡。這是提示,不是指令——按你事先定好的規則行動,不要被當下情緒帶著走。想操作前,記得先去「衝動控制」寫一筆。</p>
+    <div id="triggerList"></div>
+    <p style="font-size:11px; color:var(--muted); margin:12px 0 0; line-height:1.6;">勾選「不再提醒」的關卡之後不會再跳窗(可到「止盈/停損」頁重新打開);沒勾的,價格退回後再次觸發時會再提醒一次。</p>
+    <div class="modal-actions" style="margin-top:14px;">
+      <button id="triggerModalOk">知道了</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="customCloudModal">
+  <div class="modal-box form-modal" style="max-width:540px; max-height:82vh; overflow-y:auto;">
+    <h3 style="color:var(--gold);">連接自己的雲端(進階)</h3>
+    <p style="font-size:12.5px; color:var(--muted); line-height:1.7; margin:0 0 10px;">預設情況下,這個工具把資料存在開發者的雲端空間。如果你想要完全獨立、資料存在<strong style="color:var(--ink);">自己的</strong> Google 帳號底下,照以下步驟做一次(免費,約 15 分鐘):</p>
+    <ol style="font-size:12.5px; color:var(--ink); line-height:1.9; padding-left:18px; margin:0 0 12px;">
+      <li>前往 <strong>firebase.google.com</strong>,用 Google 帳號登入,點「Go to console」</li>
+      <li>「新增專案」→ 取名 → 關閉 Google Analytics → 建立</li>
+      <li>左側找「Firestore」→「建立資料庫」→ Standard → 位置選 asia-east1 → 先選「測試模式」→ 建立</li>
+      <li>到 Firestore 上方「規則(Rules)」分頁,整段換成下面這段後按「發布」:<pre style="background:var(--input-bg); border-radius:8px; padding:10px; font-size:10.5px; overflow-x:auto; margin:6px 0; white-space:pre;">rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /trackers/{syncId} {
+      allow read, write: if true;
+    }
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}</pre></li>
+      <li>回到專案總覽,點 Web 圖示(&lt;/&gt;)註冊應用程式,畫面會給你一段 firebaseConfig 設定</li>
+      <li>把那整段設定(含 apiKey、projectId 等)複製,貼到下面的框裡,按「套用」</li>
+    </ol>
+    <textarea id="customCfgInput" placeholder="把 firebaseConfig 那整段貼在這裡,格式不用整理,直接貼" style="min-height:90px; font-family:'JetBrains Mono'; font-size:11px;"></textarea>
+    <div id="customCloudMsg" class="status-msg"></div>
+    <p style="font-size:11px; color:var(--muted); line-height:1.6; margin:10px 0 0;">套用後頁面會重新載入,之後所有資料都會存到你自己的雲端。原本雲端上的舊資料不會自動搬過去——需要的話,先用「匯出備份」下載,切換後再「匯入備份」。</p>
+    <div class="modal-actions" style="margin-top:14px;">
+      <button class="ghost" id="customCloudReset">恢復預設雲端</button>
+      <button class="ghost" id="customCloudCancel">關閉</button>
+      <button id="customCloudApply">套用</button>
+    </div>
+  </div>
+</div>
+
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -343,7 +389,7 @@ const DEFAULT_SETTINGS = {tsmcWeight:59.06, tsmcWeightAsOf:'2026-07-14', concLim
 const DEFAULT_TIERS = {}, DEFAULT_STOP_TIERS = {};
 DEFAULT_HOLDINGS.filter(h=>h.category==='satellite').forEach(h=>{
   DEFAULT_TIERS[h.ticker] = [{pct:20,fraction:25},{pct:40,fraction:25},{pct:60,fraction:25}];
-  DEFAULT_STOP_TIERS[h.ticker] = [{pct:20,type:'review',note:'重新檢查基本面邏輯還在不在'}];
+  DEFAULT_STOP_TIERS[h.ticker] = [{pct:20,type:'review'}];
 });
 const DEFAULT_DCA_CONFIG = {};
 
@@ -374,11 +420,19 @@ let syncCode = null;
 function initFirebase(){
   try{
     if(typeof firebase === 'undefined') return false;
-    firebase.initializeApp(FIREBASE_CONFIG);
+    // 優先使用使用者自訂的雲端設定(情境B:朋友接自己的Firebase)
+    let cfg = FIREBASE_CONFIG;
+    const customRaw = localGet('pt-custom-firebase');
+    if(customRaw){
+      try{ cfg = JSON.parse(customRaw); usingCustomCloud = true; }
+      catch(e){ console.error('custom config parse error', e); }
+    }
+    firebase.initializeApp(cfg);
     fsDb = firebase.firestore();
     return true;
   }catch(e){ console.error('firebase init failed', e); return false; }
 }
+let usingCustomCloud = false;
 function localGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
 function localSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
 
@@ -461,7 +515,7 @@ function updateSyncStatus(){
   if(!el) return;
   if(!fsDb){ el.textContent = '雲端服務未載入(可能是離線或此環境不支援),資料只會存在這台裝置的瀏覽器裡。'; return; }
   if(!syncCode){ el.textContent = '尚未設定同步碼——目前資料只存在這台裝置。設定同步碼後,資料會存到雲端,任何裝置輸入同一組碼都能同步。'; return; }
-  el.textContent = '已連線雲端,同步碼: ' + syncCode.slice(0,4) + '****' + syncCode.slice(-4) + '。資料會自動同步到雲端。';
+  el.textContent = '已連線' + (usingCustomCloud ? '你自己的雲端' : '雲端') + ',同步碼: ' + syncCode.slice(0,4) + '****' + syncCode.slice(-4) + '。資料會自動同步到雲端。';
 }
 
 function pct(x){ return (x>=0?'+':'') + (x*100).toFixed(1) + '%'; }
@@ -606,12 +660,12 @@ function renderTakeProfit(){
         <span class="badge ${hit?'hit':'wait'}">${hit?'已觸發':'未到'}</span>
         <span class="meta">漲到 +</span><input type="number" data-kind="up" data-ticker="${h.ticker}" data-idx="${ti}" data-field="pct" value="${t.pct}"><span class="meta">%,賣出</span>
         <input type="number" data-kind="up" data-ticker="${h.ticker}" data-idx="${ti}" data-field="fraction" value="${t.fraction}"><span class="meta">%部位</span>
+        <label class="meta" style="display:inline-flex; align-items:center; gap:3px; cursor:pointer;"><input type="checkbox" data-alert-kind="up" data-alert-ticker="${h.ticker}" data-alert-idx="${ti}" ${t.alert!==false?'checked':''} style="width:auto;">🔔提醒</label>
         <button class="danger" data-remove-kind="up" data-remove-ticker="${h.ticker}" data-remove-idx="${ti}" style="padding:3px 9px;">刪除</button>
       </div>`;
     }).join('') || '<p class="empty">尚未設定止盈關卡</p>';
     const downHtml = downTiers.map((t,ti)=>{
       const hit = ret*100 <= -t.pct;
-      const typeLabel = t.type==='exit' ? '硬停損出場' : '重新檢視(不自動賣)';
       return `<div class="tier-row">
         <span class="badge ${hit?'warn':'wait'}">${hit?'已觸發':'未到'}</span>
         <span class="meta">跌到 -</span><input type="number" data-kind="down" data-ticker="${h.ticker}" data-idx="${ti}" data-field="pct" value="${t.pct}"><span class="meta">%</span>
@@ -619,8 +673,8 @@ function renderTakeProfit(){
           <option value="review" ${t.type==='review'?'selected':''}>重新檢視</option>
           <option value="exit" ${t.type==='exit'?'selected':''}>硬停損出場</option>
         </select>
+        <label class="meta" style="display:inline-flex; align-items:center; gap:3px; cursor:pointer;"><input type="checkbox" data-alert-kind="down" data-alert-ticker="${h.ticker}" data-alert-idx="${ti}" ${t.alert!==false?'checked':''} style="width:auto;">🔔提醒</label>
         <button class="danger" data-remove-kind="down" data-remove-ticker="${h.ticker}" data-remove-idx="${ti}" style="padding:3px 9px;">刪除</button>
-        <div style="flex-basis:100%;"><input type="text" data-kind="down" data-ticker="${h.ticker}" data-idx="${ti}" data-field="note" value="${t.note||''}" placeholder="這一關要提醒自己檢查什麼?" style="font-family:'Noto Sans TC'; margin-top:2px;"></div>
       </div>`;
     }).join('') || '<p class="empty">尚未設定停損關卡</p>';
 
@@ -642,10 +696,22 @@ function renderTakeProfit(){
   });
 
   list.querySelectorAll('input,select').forEach(inp=>{
+    if(inp.dataset.alertKind !== undefined){
+      inp.addEventListener('change', e=>{
+        const kind = e.target.dataset.alertKind, t = e.target.dataset.alertTicker, idx = +e.target.dataset.alertIdx;
+        const target = kind==='up' ? state.tiers : state.stopTiers;
+        target[t][idx].alert = e.target.checked;
+        // 手動關閉的提醒,標記為使用者決定,重新觸發時不會自動打開
+        target[t][idx].mutedBy = e.target.checked ? null : 'user';
+        save(kind==='up' ? 'tp-tiers' : 'sl-tiers', target);
+      });
+      return;
+    }
     inp.addEventListener('change', e=>{
       const kind = e.target.dataset.kind, t = e.target.dataset.ticker, idx = +e.target.dataset.idx, field = e.target.dataset.field;
+      if(!kind) return;
       const target = kind==='up' ? state.tiers : state.stopTiers;
-      if(field==='note' || field==='type') target[t][idx][field] = e.target.value;
+      if(field==='type') target[t][idx][field] = e.target.value;
       else target[t][idx][field] = parseFloat(e.target.value) || 0;
       save(kind==='up' ? 'tp-tiers' : 'sl-tiers', target);
     });
@@ -666,7 +732,7 @@ function renderTakeProfit(){
     btn.addEventListener('click', e=>{
       const kind = e.target.dataset.addtier, t = e.target.dataset.addticker;
       if(kind==='up'){ if(!state.tiers[t]) state.tiers[t]=[]; state.tiers[t].push({pct:20, fraction:25}); save('tp-tiers', state.tiers); }
-      else { if(!state.stopTiers[t]) state.stopTiers[t]=[]; state.stopTiers[t].push({pct:15, type:'review', note:''}); save('sl-tiers', state.stopTiers); }
+      else { if(!state.stopTiers[t]) state.stopTiers[t]=[]; state.stopTiers[t].push({pct:15, type:'review'}); save('sl-tiers', state.stopTiers); }
       renderTakeProfit();
     });
   });
@@ -816,6 +882,67 @@ document.querySelectorAll('.tab').forEach(tab=>{
   });
 });
 
+function checkTriggers(){
+  // 回傳這次「新跨過」且提醒開啟的關卡清單;同時更新每個關卡的 wasHit 狀態
+  const newly = [];
+  let changed = false;
+  state.holdings.filter(h=>h.category==='satellite').forEach(h=>{
+    const ret = h.avgCost ? (h.price/h.avgCost - 1)*100 : 0;
+    (state.tiers[h.ticker]||[]).forEach((t,idx)=>{
+      const hit = ret >= t.pct;
+      if(hit && !t.wasHit && t.alert !== false){
+        newly.push({kind:'up', ticker:h.ticker, name:h.name, idx, desc:`漲到 +${t.pct}% 止盈關卡(規則:賣出 ${t.fraction}% 部位),目前 ${pct(ret/100)}`});
+      }
+      if(t.wasHit !== hit){ t.wasHit = hit; changed = true; }
+    });
+    (state.stopTiers[h.ticker]||[]).forEach((t,idx)=>{
+      const hit = ret <= -t.pct;
+      if(hit && !t.wasHit && t.alert !== false){
+        const typeLabel = t.type==='exit' ? '硬停損出場' : '重新檢視(回去查基本面,不是叫你馬上賣)';
+        newly.push({kind:'down', ticker:h.ticker, name:h.name, idx, desc:`跌到 -${t.pct}% 停損關卡(規則:${typeLabel}),目前 ${pct(ret/100)}`});
+      }
+      if(t.wasHit !== hit){ t.wasHit = hit; changed = true; }
+    });
+  });
+  return {newly, changed};
+}
+
+function showTriggerModal(newly){
+  const listEl = document.getElementById('triggerList');
+  listEl.innerHTML = newly.map((n,i)=>`
+    <div style="border-top:1px solid var(--card-border); padding:9px 0;">
+      <strong style="color:${n.kind==='up'?'var(--green)':'var(--red)'};">${n.name}(${n.ticker})</strong>
+      <div class="meta" style="margin:3px 0 5px; line-height:1.5;">${n.desc}</div>
+      <label class="meta" style="display:inline-flex; align-items:center; gap:4px; cursor:pointer;">
+        <input type="checkbox" data-trigmute="${i}" style="width:auto;">這一關不再提醒
+      </label>
+    </div>`).join('');
+  document.getElementById('triggerModal').classList.add('show');
+  const okBtn = document.getElementById('triggerModalOk');
+  const handler = async ()=>{
+    okBtn.removeEventListener('click', handler);
+    let muted = false;
+    listEl.querySelectorAll('[data-trigmute]').forEach(cb=>{
+      if(cb.checked){
+        const n = newly[+cb.dataset.trigmute];
+        const target = n.kind==='up' ? state.tiers : state.stopTiers;
+        if(target[n.ticker] && target[n.ticker][n.idx]){
+          target[n.ticker][n.idx].alert = false;
+          target[n.ticker][n.idx].mutedBy = 'user';
+          muted = true;
+        }
+      }
+    });
+    if(muted){
+      await save('tp-tiers', state.tiers);
+      await save('sl-tiers', state.stopTiers);
+      renderTakeProfit();
+    }
+    document.getElementById('triggerModal').classList.remove('show');
+  };
+  okBtn.addEventListener('click', handler);
+}
+
 document.getElementById('saveDashboard').addEventListener('click', async ()=>{
   state.settings.lastUpdated = Date.now();
   await save('portfolio-data', {holdings: state.holdings, settings: state.settings});
@@ -828,7 +955,14 @@ document.getElementById('saveDashboard').addEventListener('click', async ()=>{
   state.snapshots.push({date: today, totalValue, totalCost});
   state.snapshots.sort((a,b)=>a.date.localeCompare(b.date));
   await save('value-snapshots', state.snapshots);
+  // 檢查這次更新有沒有新跨過的止盈/停損關卡
+  const {newly, changed} = checkTriggers();
+  if(changed){
+    await save('tp-tiers', state.tiers);
+    await save('sl-tiers', state.stopTiers);
+  }
   renderDashboard(); renderConcentration(); renderTakeProfit(); renderInvestCurve();
+  if(newly.length > 0){ showTriggerModal(newly); }
 });
 let editingIndex = null;
 
@@ -871,7 +1005,7 @@ document.getElementById('addHolding').addEventListener('click', async ()=>{
     }
     if(category==='satellite' && !state.tiers[ticker]){
       state.tiers[ticker] = [{pct:20,fraction:25},{pct:40,fraction:25},{pct:60,fraction:25}];
-      state.stopTiers[ticker] = [{pct:20,type:'review',note:''}];
+      state.stopTiers[ticker] = [{pct:20,type:'review'}];
     }
     state.holdings[editingIndex] = {ticker, name, category, shares, avgCost, price};
     editingIndex = null;
@@ -880,7 +1014,7 @@ document.getElementById('addHolding').addEventListener('click', async ()=>{
     state.holdings.push({ticker, name, category, shares, avgCost, price});
     if(category==='satellite'){
       state.tiers[ticker] = [{pct:20,fraction:25},{pct:40,fraction:25},{pct:60,fraction:25}];
-      state.stopTiers[ticker] = [{pct:20,type:'review',note:''}];
+      state.stopTiers[ticker] = [{pct:20,type:'review'}];
     }
   }
   await save('tp-tiers', state.tiers);
@@ -1170,11 +1304,72 @@ document.getElementById('importFile').addEventListener('change', async e=>{
   e.target.value = '';
 });
 
+// ===== 自訂雲端(情境B)=====
+document.getElementById('openCustomCloud').addEventListener('click', ()=>{
+  document.getElementById('customCloudModal').classList.add('show');
+  const msg = document.getElementById('customCloudMsg');
+  msg.className='status-msg';
+  msg.textContent = usingCustomCloud ? '目前使用:你自己的雲端。' : '目前使用:預設雲端(開發者的空間)。';
+});
+document.getElementById('customCloudCancel').addEventListener('click', ()=>{
+  document.getElementById('customCloudModal').classList.remove('show');
+});
+document.getElementById('customCloudModal').addEventListener('click', e=>{
+  if(e.target === document.getElementById('customCloudModal')) document.getElementById('customCloudModal').classList.remove('show');
+});
+document.getElementById('customCloudApply').addEventListener('click', ()=>{
+  const msg = document.getElementById('customCloudMsg');
+  const raw = document.getElementById('customCfgInput').value.trim();
+  if(!raw){ msg.textContent='請先貼上 firebaseConfig 設定。'; msg.className='status-msg error'; return; }
+  // 從貼上的文字裡抓出 {...} 區塊,並容忍 JS 物件寫法(鍵沒加引號)
+  const m = raw.match(/\{[\s\S]*\}/);
+  if(!m){ msg.textContent='沒有找到 { } 包起來的設定內容,請確認有複製完整。'; msg.className='status-msg error'; return; }
+  let cfg = null;
+  try{ cfg = JSON.parse(m[0]); }
+  catch(e){
+    try{ cfg = (new Function('return (' + m[0] + ')'))(); }
+    catch(e2){ msg.textContent='設定內容無法解析,請確認複製的是 firebaseConfig 那整段。'; msg.className='status-msg error'; return; }
+  }
+  if(!cfg || !cfg.apiKey || !cfg.projectId){
+    msg.textContent='設定內容缺少 apiKey 或 projectId,請確認複製完整。'; msg.className='status-msg error'; return;
+  }
+  localSet('pt-custom-firebase', JSON.stringify(cfg));
+  msg.textContent='已套用,頁面即將重新載入...';
+  setTimeout(()=>location.reload(), 800);
+});
+document.getElementById('customCloudReset').addEventListener('click', ()=>{
+  try{ localStorage.removeItem('pt-custom-firebase'); }catch(e){}
+  const msg = document.getElementById('customCloudMsg');
+  msg.className='status-msg';
+  msg.textContent='已恢復預設雲端,頁面即將重新載入...';
+  setTimeout(()=>location.reload(), 800);
+});
+
+function initTriggerBaseline(){
+  // 首次載入時,把「目前已處於觸發狀態」的關卡標記為已知(wasHit),
+  // 避免使用者第一次按「儲存現價」時,把早已存在的舊觸發誤當成新事件跳彈窗。
+  let changed = false;
+  state.holdings.filter(h=>h.category==='satellite').forEach(h=>{
+    const ret = h.avgCost ? (h.price/h.avgCost - 1)*100 : 0;
+    (state.tiers[h.ticker]||[]).forEach(t=>{
+      if(t.wasHit === undefined){ t.wasHit = ret >= t.pct; changed = true; }
+    });
+    (state.stopTiers[h.ticker]||[]).forEach(t=>{
+      if(t.wasHit === undefined){ t.wasHit = ret <= -t.pct; changed = true; }
+    });
+  });
+  return changed;
+}
+
 (async ()=>{
   initFirebase();
   syncCode = localGet('pt-sync-code');
   if(syncCode){ const inp = document.getElementById('syncCodeInput'); if(inp) inp.value = syncCode; }
   await loadState();
+  if(initTriggerBaseline()){
+    await save('tp-tiers', state.tiers);
+    await save('sl-tiers', state.stopTiers);
+  }
   renderAll();
   updateSyncStatus();
 })();
