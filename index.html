@@ -200,10 +200,8 @@
       </div>
       <div class="row">
         <button id="applySyncCode">套用同步碼</button>
-        <button id="exportData" class="ghost">匯出備份</button>
-        <button id="importDataBtn" class="ghost">匯入備份</button>
-        <input type="file" id="importFile" accept=".json,application/json" style="display:none;">
       </div>
+      <p class="meta" style="margin:2px 0 8px;">備份的匯出與匯入,已移到「設定」分頁。</p>
       <div id="syncMsg" class="status-msg"></div>
       <p class="meta" style="margin-top:8px; line-height:1.6;">同步碼就像這份資料的鑰匙:在另一台裝置(手機、平板)打開這個網頁,輸入同一組同步碼,就能看到同一份資料。同步碼請保管好,不要用猜得到的字串。</p>
     </div>
@@ -529,6 +527,10 @@ function setSyncMsg(msg, isError){
   const el = document.getElementById('syncMsg');
   if(el){ el.textContent = msg; el.className = 'status-msg' + (isError ? ' error' : ''); }
 }
+function setBackupMsg(msg, isError){
+  const el = document.getElementById('backupStatus');
+  if(el){ el.textContent = msg; el.className = 'status-msg' + (isError ? ' error' : ''); }
+}
 function updateSyncStatus(){
   const el = document.getElementById('syncStatus');
   if(!el) return;
@@ -732,7 +734,9 @@ function renderTakeProfit(){
       const target = kind==='up' ? state.tiers : state.stopTiers;
       if(field==='type') target[t][idx][field] = e.target.value;
       else target[t][idx][field] = parseFloat(e.target.value) || 0;
+      if(field==='pct'){ delete target[t][idx].wasHit; } // 關卡數字變了,舊的觸發記錄不再準確,交給下次儲存現價重新判斷
       save(kind==='up' ? 'tp-tiers' : 'sl-tiers', target);
+      renderTakeProfit(); // 改完關卡數字,立刻重畫「已觸發/未到」標籤,不用等下次儲存現價
     });
   });
   list.querySelectorAll('[data-remove-ticker]').forEach(btn=>{
@@ -1294,7 +1298,7 @@ document.getElementById('exportData').addEventListener('click', ()=>{
   link.href = URL.createObjectURL(blob);
   link.click();
   URL.revokeObjectURL(link.href);
-  setSyncMsg('備份已下載。');
+  setBackupMsg('備份已下載。');
 });
 
 document.getElementById('importDataBtn').addEventListener('click', ()=>{
@@ -1316,9 +1320,9 @@ document.getElementById('importFile').addEventListener('change', async e=>{
     if(d['value-snapshots']) state.snapshots = d['value-snapshots'];
     await saveAllKeys();
     renderAll();
-    setSyncMsg('備份匯入完成,資料已還原' + (fsDb && syncCode ? '並同步到雲端。' : '。'));
+    setBackupMsg('備份匯入完成,資料已還原' + (fsDb && syncCode ? '並同步到雲端。' : '。'));
   }catch(err){
-    setSyncMsg('匯入失敗: ' + err.message, true);
+    setBackupMsg('匯入失敗: ' + err.message, true);
   }
   e.target.value = '';
 });
